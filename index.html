@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Ring Timer</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0A0E13">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ring Timer">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --ink:#0A0E13;
+  --panel:#121922;
+  --panel-2:#1B242F;
+  --line:rgba(150,180,210,.14);
+  --text:#E4EDF5;
+  --muted:#7A8B9C;
+  --blue:#3C8CE8;
+  --green:#33B27C;
+  --slate:#8FA6BC;
+  --deep:#07101A;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{
+  background:var(--ink);color:var(--text);
+  font-family:system-ui,-apple-system,"Helvetica Neue",sans-serif;
+  font-size:16px;line-height:1.5;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  overscroll-behavior:none;
+}
+.wrap{max-width:520px;margin:0 auto;padding:12px 16px 28px;display:flex;flex-direction:column;min-height:100dvh}
+.tabs{display:flex;gap:6px;background:var(--panel);padding:4px;border-radius:12px;margin-bottom:14px}
+.tab{flex:1;border:0;background:transparent;color:var(--muted);font:inherit;font-size:14px;padding:10px 4px;border-radius:9px;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--panel-2);color:var(--text)}
+.stage{
+  border-radius:20px;background:var(--panel);
+  padding:26px 18px 22px;text-align:center;position:relative;overflow:hidden;
+  transition:background .18s linear;cursor:pointer;user-select:none;
+  min-height:270px;display:flex;flex-direction:column;justify-content:center;
+}
+.bar{position:absolute;top:0;left:0;height:4px;width:0;background:rgba(190,215,240,.45)}
+.phase{margin:0;font-size:13px;letter-spacing:.18em;text-transform:uppercase;opacity:.72}
+.clock{
+  margin:2px 0 0;font-size:82px;font-weight:500;line-height:1.05;letter-spacing:-.02em;
+  font-family:"DIN Alternate",ui-monospace,"SF Mono",Menlo,monospace;font-variant-numeric:tabular-nums;
+}
+.move{margin:2px 0 0;font-size:19px;font-weight:500;min-height:28px}
+.next{margin:8px 0 0;font-size:13px;opacity:.66;min-height:20px}
+.rounds{margin:14px 0 0;font-size:13px;letter-spacing:.1em;opacity:.6}
+.stage.work{background:var(--blue);color:var(--deep)}
+.stage.rest{background:var(--green);color:var(--deep)}
+.stage.prep{background:var(--slate);color:var(--deep)}
+.stage.work .bar,.stage.rest .bar,.stage.prep .bar{background:rgba(7,16,26,.30)}
+.controls{display:flex;gap:10px;margin:14px 0 18px}
+button.act{
+  flex:1;border:0;border-radius:14px;background:var(--panel-2);color:var(--text);
+  font:inherit;font-size:16px;font-weight:500;padding:16px 8px;cursor:pointer;
+}
+button.act:active{transform:scale(.985)}
+button.go{background:var(--blue);color:var(--deep)}
+button.ghost{flex:0 0 84px;background:transparent;border:1px solid var(--line);color:var(--muted)}
+.card{background:var(--panel);border-radius:16px;padding:4px 14px}
+.row{display:flex;align-items:center;gap:10px;padding:13px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .lab{flex:1;font-size:15px}
+.row .sub{display:block;font-size:12px;color:var(--muted)}
+.step{display:flex;align-items:center;gap:2px}
+.step button{
+  width:38px;height:38px;border-radius:10px;border:1px solid var(--line);
+  background:transparent;color:var(--text);font-size:20px;line-height:1;cursor:pointer;font-family:inherit;
+}
+.step .val{
+  min-width:62px;text-align:center;font-size:17px;font-variant-numeric:tabular-nums;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace;
+}
+.seg{display:flex;gap:4px;background:var(--panel-2);border-radius:10px;padding:3px}
+.seg button{border:0;background:transparent;color:var(--muted);font:inherit;font-size:14px;padding:8px 12px;border-radius:8px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--blue);color:var(--deep)}
+.total{margin:14px 2px 0;font-size:13px;color:var(--muted);text-align:center}
+.hint{margin:16px 2px 0;font-size:12px;color:var(--muted);line-height:1.6}
+.hide{display:none}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="tabs" role="tablist">
+    <button class="tab" id="tab-circuit" role="tab" aria-selected="true">Circuito 40/20</button>
+    <button class="tab" id="tab-box" role="tab" aria-selected="false">Box</button>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="bar" id="bar"></div>
+    <p class="phase" id="phase">Listo</p>
+    <p class="clock" id="clock">0:40</p>
+    <p class="move" id="move">Rotational reverse lunges</p>
+    <p class="next" id="next">sigue: cross body lifts</p>
+    <p class="rounds" id="prog">Ronda 1 / 3</p>
+  </div>
+
+  <div class="controls">
+    <button class="act go" id="go">Empezar</button>
+    <button class="act ghost" id="rst">Reiniciar</button>
+  </div>
+
+  <div id="cfg-circuit">
+    <div class="card">
+      <div class="row">
+        <span class="lab">Día<span class="sub">define los tres movimientos</span></span>
+        <div class="seg">
+          <button id="dayA" aria-pressed="true">Lun/Jue</button>
+          <button id="dayB" aria-pressed="false">Mar/Vie</button>
+        </div>
+      </div>
+      <div class="row"><span class="lab">Rondas</span><div class="step" data-k="c_rounds"><button data-d="-1">−</button><span class="val" id="v_c_rounds">3</span><button data-d="1">+</button></div></div>
+      <div class="row"><span class="lab">Trabajo</span><div class="step" data-k="c_work"><button data-d="-5">−</button><span class="val" id="v_c_work">0:40</span><button data-d="5">+</button></div></div>
+      <div class="row"><span class="lab">Descanso</span><div class="step" data-k="c_rest"><button data-d="-5">−</button><span class="val" id="v_c_rest">0:20</span><button data-d="5">+</button></div></div>
+      <div class="row"><span class="lab">Preparación</span><div class="step" data-k="c_prep"><button data-d="-5">−</button><span class="val" id="v_c_prep">0:15</span><button data-d="5">+</button></div></div>
+      <div class="row">
+        <span class="lab">Pausa larga<span class="sub">5 min después de la ronda 4</span></span>
+        <div class="seg"><button id="lrOn" aria-pressed="true">Sí</button><button id="lrOff" aria-pressed="false">No</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="cfg-box" class="hide">
+    <div class="card">
+      <div class="row"><span class="lab">Rounds</span><div class="step" data-k="b_rounds"><button data-d="-1">−</button><span class="val" id="v_b_rounds">8</span><button data-d="1">+</button></div></div>
+      <div class="row"><span class="lab">Duración</span><div class="step" data-k="b_work"><button data-d="-15">−</button><span class="val" id="v_b_work">3:00</span><button data-d="15">+</button></div></div>
+      <div class="row"><span class="lab">Descanso</span><div class="step" data-k="b_rest"><button data-d="-15">−</button><span class="val" id="v_b_rest">1:00</span><button data-d="15">+</button></div></div>
+      <div class="row"><span class="lab">Preparación</span><div class="step" data-k="b_prep"><button data-d="-5">−</button><span class="val" id="v_b_prep">0:25</span><button data-d="5">+</button></div></div>
+      <div class="row"><span class="lab">Aviso de fin<span class="sub">claqueo antes de cerrar el round</span></span><div class="step" data-k="b_warn"><button data-d="-5">−</button><span class="val" id="v_b_warn">0:10</span><button data-d="5">+</button></div></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="row">
+      <span class="lab">Volumen<span class="sub">toca + para probar el sonido</span></span>
+      <div class="step" data-k="vol"><button data-d="-25">−</button><span class="val" id="v_vol">150%</span><button data-d="25">+</button></div>
+    </div>
+  </div>
+
+  <p class="total" id="total">Total 9:00</p>
+  <p class="hint" id="wl">Toca la pantalla grande para pausar o seguir.</p>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+var $=function(id){return document.getElementById(id)};
+var MOVES={
+  A:["Rotational reverse lunges","Cross body lifts + lunge","Halos"],
+  B:["Oblique leans","Digging halos","Woodchoppers"]
+};
+var LIM={vol:[25,300,25],c_rounds:[1,15,1],c_work:[10,180,5],c_rest:[5,120,5],c_prep:[0,60,5],
+         b_rounds:[1,20,1],b_work:[30,600,15],b_rest:[15,300,15],b_prep:[0,60,5],b_warn:[0,60,5]};
+var S={mode:"circuit",day:"A",longRest:true,vol:150,
+  c_rounds:3,c_work:40,c_rest:20,c_prep:15,
+  b_rounds:8,b_work:180,b_rest:60,b_prep:25,b_warn:10};
+
+try{var saved=JSON.parse(localStorage.getItem("ringtimer")||"{}");
+  for(var k in saved){if(k in S)S[k]=saved[k]}}catch(e){}
+function save(){try{localStorage.setItem("ringtimer",JSON.stringify(S))}catch(e){}}
+
+function fmt(s){s=Math.max(0,Math.ceil(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
+
+var seq=[],idx=0,left=0,running=false,tick=null,last=0,finished=false,warned=false,lock=null;
+
+function build(){
+  seq=[];
+  var i,r;
+  if(S.mode==="circuit"){
+    if(S.c_prep>0)seq.push({k:"prep",n:"Prepárate",d:S.c_prep,r:1});
+    for(r=1;r<=S.c_rounds;r++){
+      for(i=0;i<3;i++){
+        seq.push({k:"work",n:MOVES[S.day][i],d:S.c_work,r:r});
+        seq.push({k:"rest",n:"Descanso",d:S.c_rest,r:r});
+      }
+      if(S.longRest&&r===4&&S.c_rounds>4)seq.push({k:"rest",n:"Pausa larga",d:300,r:r});
+    }
+  }else{
+    if(S.b_prep>0)seq.push({k:"prep",n:"Prepárate",d:S.b_prep,r:1});
+    for(r=1;r<=S.b_rounds;r++){
+      seq.push({k:"work",n:"Round "+r,d:S.b_work,r:r,bell:true});
+      if(r<S.b_rounds)seq.push({k:"rest",n:"Descanso",d:S.b_rest,r:r});
+    }
+  }
+  idx=0;left=seq[0].d;finished=false;warned=false;
+  var t=0;for(i=0;i<seq.length;i++)t+=seq[i].d;
+  $("total").textContent="Total "+fmt(t);
+  paint();
+}
+
+function totalRounds(){return S.mode==="circuit"?S.c_rounds:S.b_rounds}
+
+function paint(){
+  var s=seq[idx],nx=seq[idx+1],st=$("stage");
+  st.className="stage "+(finished?"":s.k);
+  $("clock").textContent=fmt(left);
+  $("phase").textContent=finished?"Terminado":
+    s.k==="work"?(S.mode==="circuit"?"Trabajo":"Round"):s.k==="prep"?"Prepárate":"Descanso";
+  $("move").textContent=finished?"Buen trabajo":(s.k==="work"?s.n:(s.k==="rest"?s.n:""));
+  $("next").textContent=finished?"":(nx?"sigue: "+(nx.k==="work"?nx.n:nx.n.toLowerCase()):"último");
+  $("prog").textContent=finished?"":"Ronda "+s.r+" / "+totalRounds();
+  $("bar").style.width=(100*(1-left/s.d))+"%";
+}
+
+var ac=null,master=null;
+function actx(){
+  if(!ac){
+    try{
+      ac=new (window.AudioContext||window.webkitAudioContext)();
+      var comp=ac.createDynamicsCompressor();
+      comp.threshold.value=-14;comp.knee.value=8;comp.ratio.value=6;
+      comp.attack.value=.002;comp.release.value=.18;
+      master=ac.createGain();
+      master.connect(comp);comp.connect(ac.destination);
+      master.gain.value=S.vol/100;
+    }catch(e){}
+  }
+  if(ac&&ac.state==="suspended")ac.resume();
+  if(master)master.gain.value=S.vol/100;
+  return ac;
+}
+function out(){return master||(ac?ac.destination:null)}
+function tone(f,dur,vol,type){
+  var c=actx();if(!c)return;
+  var o=c.createOscillator(),o2=c.createOscillator(),g=c.createGain();
+  o.type=type||"triangle";o.frequency.value=f;
+  o2.type="sine";o2.frequency.value=f*2;
+  var g2=c.createGain();g2.gain.value=.45;
+  o.connect(g);o2.connect(g2);g2.connect(g);g.connect(out());
+  g.gain.setValueAtTime(vol||.9,c.currentTime);
+  g.gain.exponentialRampToValueAtTime(.0008,c.currentTime+dur);
+  o.start();o2.start();o.stop(c.currentTime+dur+.02);o2.stop(c.currentTime+dur+.02);
+}
+function bell(times){
+  var c=actx();if(!c)return;
+  var hit=function(t0){
+    [1,2.76,5.4,8.9].forEach(function(m,i){
+      var o=c.createOscillator(),g=c.createGain();
+      o.type="sine";o.frequency.value=680*m;
+      o.connect(g);g.connect(out());
+      g.gain.setValueAtTime(.95/(i*.8+1),t0);
+      g.gain.exponentialRampToValueAtTime(.0008,t0+1.5/(i*.6+1));
+      o.start(t0);o.stop(t0+1.6);
+    });
+  };
+  for(var i=0;i<(times||1);i++)hit(c.currentTime+i*.42);
+}
+function clap(){
+  for(var i=0;i<3;i++)setTimeout(function(){tone(1500,.07,.8,"square")},i*130);
+}
+
+function requestLock(){
+  if(!("wakeLock" in navigator))return;
+  navigator.wakeLock.request("screen").then(function(l){
+    lock=l;lock.addEventListener("release",function(){lock=null});
+  }).catch(function(){});
+}
+function dropLock(){if(lock){lock.release().catch(function(){});lock=null}}
+document.addEventListener("visibilitychange",function(){
+  if(document.visibilityState==="visible"&&running)requestLock();
+});
+
+function step(){
+  var now=Date.now(),dt=(now-last)/1000;last=now;
+  var s=seq[idx],prev=Math.ceil(left);
+  left-=dt;
+  var cur=Math.ceil(left);
+  if(cur!==prev){
+    if(S.mode==="box"&&s.k==="work"&&S.b_warn>0&&!warned&&cur<=S.b_warn){warned=true;clap()}
+    if(cur>0&&cur<=3)tone(880,.13,.95);
+  }
+  if(left<=0){
+    if(idx>=seq.length-1){
+      finished=true;left=0;stop();
+      if(S.mode==="box")bell(3);else tone(520,.9,1);
+      paint();return;
+    }
+    idx++;left=seq[idx].d;warned=false;
+    var n=seq[idx];
+    if(n.k==="work"){if(n.bell)bell(1);else tone(1050,.4,1)}
+    else{tone(440,.32,.9);setTimeout(function(){tone(330,.34,.85)},170)}
+    paint();return;
+  }
+  $("clock").textContent=fmt(left);
+  $("bar").style.width=(100*(1-left/s.d))+"%";
+}
+
+function start(){
+  if(finished)build();
+  actx();running=true;last=Date.now();
+  tick=setInterval(step,80);
+  $("go").textContent="Pausa";
+  requestLock();
+  var s=seq[idx];
+  if(idx===0&&left===s.d){if(s.k==="work"&&s.bell)bell(1);else tone(1050,.4,1)}
+}
+function stop(){
+  running=false;clearInterval(tick);
+  $("go").textContent=finished?"Empezar":"Seguir";
+  dropLock();
+}
+function reset(){stop();build();$("go").textContent="Empezar"}
+
+$("go").onclick=function(){running?stop():start()};
+$("rst").onclick=reset;
+$("stage").onclick=function(){running?stop():start()};
+
+Array.prototype.forEach.call(document.querySelectorAll(".step"),function(el){
+  var key=el.getAttribute("data-k");
+  Array.prototype.forEach.call(el.querySelectorAll("button"),function(b){
+    b.onclick=function(ev){
+      ev.stopPropagation();
+      var d=+b.getAttribute("data-d"),L=LIM[key];
+      S[key]=Math.min(L[1],Math.max(L[0],S[key]+d));
+      render();save();
+      if(key==="vol"){actx();tone(880,.16,.95);}else{reset();}
+    };
+  });
+});
+
+function render(){
+  $("v_vol").textContent=Math.round(S.vol)+"%";
+  $("v_c_rounds").textContent=S.c_rounds;
+  $("v_c_work").textContent=fmt(S.c_work);
+  $("v_c_rest").textContent=fmt(S.c_rest);
+  $("v_c_prep").textContent=fmt(S.c_prep);
+  $("v_b_rounds").textContent=S.b_rounds;
+  $("v_b_work").textContent=fmt(S.b_work);
+  $("v_b_rest").textContent=fmt(S.b_rest);
+  $("v_b_prep").textContent=fmt(S.b_prep);
+  $("v_b_warn").textContent=fmt(S.b_warn);
+  $("dayA").setAttribute("aria-pressed",S.day==="A");
+  $("dayB").setAttribute("aria-pressed",S.day==="B");
+  $("lrOn").setAttribute("aria-pressed",S.longRest);
+  $("lrOff").setAttribute("aria-pressed",!S.longRest);
+  $("tab-circuit").setAttribute("aria-selected",S.mode==="circuit");
+  $("tab-box").setAttribute("aria-selected",S.mode==="box");
+  $("cfg-circuit").className=S.mode==="circuit"?"":"hide";
+  $("cfg-box").className=S.mode==="box"?"":"hide";
+}
+function setMode(m){S.mode=m;render();save();reset()}
+$("tab-circuit").onclick=function(){setMode("circuit")};
+$("tab-box").onclick=function(){setMode("box")};
+$("dayA").onclick=function(){S.day="A";render();save();reset()};
+$("dayB").onclick=function(){S.day="B";render();save();reset()};
+$("lrOn").onclick=function(){S.longRest=true;render();save();reset()};
+$("lrOff").onclick=function(){S.longRest=false;render();save();reset()};
+
+if(!("wakeLock" in navigator))
+  $("wl").textContent="Tu navegador no soporta bloqueo de pantalla. Pon el auto-lock en Nunca mientras entrenas.";
+
+render();build();
+
+if("serviceWorker" in navigator)
+  window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});
+})();
+</script>
+</body>
+</html>
