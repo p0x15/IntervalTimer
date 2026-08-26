@@ -1,4 +1,4 @@
-const CACHE = "ringtimer-v6";
+const CACHE = "ringtimer-v7";
 const ASSETS = [
   "./",
   "./index.html",
@@ -22,11 +22,26 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
+
+  // El HTML va primero a la red: así una versión nueva se ve en la misma
+  // carga, no en la siguiente. La caché queda solo como respaldo offline.
+  if (e.request.mode === "navigate" || e.request.destination === "document") {
+    e.respondWith(
+      fetch(e.request).then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put("./index.html", copy)).catch(() => {});
+        return res;
+      }).catch(() => caches.match(e.request).then((hit) => hit || caches.match("./index.html")))
+    );
+    return;
+  }
+
+  // Iconos y manifest: caché primero, cambian poco.
   e.respondWith(
     caches.match(e.request).then((hit) => hit || fetch(e.request).then((res) => {
       const copy = res.clone();
       caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
       return res;
-    }).catch(() => caches.match("./index.html")))
+    }))
   );
 });
