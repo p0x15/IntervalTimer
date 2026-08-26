@@ -436,8 +436,17 @@ if(!HAS_WL)
 
 render();build();requestLock();
 
-if("serviceWorker" in navigator)
+if("serviceWorker" in navigator){
+  // Si entra un service worker nuevo, recarga para aplicar la versión al
+  // vuelo. Nunca a mitad de entrenamiento: ahí se aplica al siguiente
+  // arranque, que para eso el SW ya quedó actualizado.
+  var hadCtrl=!!navigator.serviceWorker.controller,reloading=false;
+  navigator.serviceWorker.addEventListener("controllerchange",function(){
+    if(!hadCtrl||reloading||running||!atStart())return;
+    reloading=true;location.reload();
+  });
   window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});
+}
 })();
 </script>
 </body>
