@@ -84,6 +84,22 @@ button.ghost{flex:0 0 84px;background:transparent;border:1px solid var(--line);c
 .total{margin:14px 2px 0;font-size:13px;color:var(--muted);text-align:center}
 .hint{margin:16px 2px 0;font-size:12px;color:var(--muted);line-height:1.6}
 .hide{display:none}
+.mask{
+  position:fixed;inset:0;background:rgba(4,8,13,.72);backdrop-filter:blur(3px);
+  display:flex;align-items:center;justify-content:center;padding:24px;z-index:50;
+}
+.mask.hide{display:none}
+.modal{
+  width:100%;max-width:340px;background:var(--panel);border:1px solid var(--line);
+  border-radius:20px;padding:26px 22px 18px;text-align:center;
+}
+.modal h2{margin:0 0 8px;font-size:19px;font-weight:600}
+.modal p{margin:0 0 18px;font-size:14px;color:var(--muted);line-height:1.5}
+.modal .act{width:100%}
+.modal .skip{
+  display:block;width:100%;margin-top:6px;border:0;background:transparent;color:var(--muted);
+  font:inherit;font-size:13px;padding:12px 4px;cursor:pointer;
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -144,11 +160,28 @@ button.ghost{flex:0 0 84px;background:transparent;border:1px solid var(--line);c
       <span class="lab">Volumen<span class="sub">toca + para probar el sonido</span></span>
       <div class="step" data-k="vol"><button data-d="-25">−</button><span class="val" id="v_vol">150%</span><button data-d="25">+</button></div>
     </div>
+    <div class="row">
+      <span class="lab">Pantalla siempre encendida<span class="sub" id="wlsub">activo</span></span>
+      <div class="seg"><button id="wlOn" aria-pressed="true">Sí</button><button id="wlOff" aria-pressed="false">No</button></div>
+    </div>
+    <div class="row">
+      <span class="lab">Recordar el Coros<span class="sub">aviso al empezar cada sesión</span></span>
+      <div class="seg"><button id="cwOn" aria-pressed="true">Sí</button><button id="cwOff" aria-pressed="false">No</button></div>
+    </div>
   </div>
 
   <p class="total" id="total">Total 9:00</p>
   <p class="hint" id="wl">Toca la pantalla grande para pausar o seguir.</p>
 
+</div>
+
+<div class="mask hide" id="mask">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mtitle">
+    <h2 id="mtitle">¿Prendiste el Coros?</h2>
+    <p id="mtxt">Inicia el entrenamiento en el reloj antes de arrancar.</p>
+    <button class="act go" id="mgo">Listo, empezar</button>
+    <button class="skip" id="mnever">No recordármelo más</button>
+  </div>
 </div>
 
 <script>
@@ -161,7 +194,7 @@ var MOVES={
 };
 var LIM={vol:[25,300,25],c_rounds:[1,15,1],c_work:[10,180,5],c_rest:[5,120,5],c_prep:[0,60,5],
          b_rounds:[1,20,1],b_work:[30,600,15],b_rest:[15,300,15],b_prep:[0,60,5],b_warn:[0,60,5]};
-var S={mode:"circuit",day:"A",longRest:true,vol:150,
+var S={mode:"circuit",day:"A",longRest:true,vol:150,keepAwake:true,coros:true,
   c_rounds:3,c_work:40,c_rest:20,c_prep:15,
   b_rounds:8,b_work:180,b_rest:60,b_prep:25,b_warn:10};
 
@@ -259,16 +292,27 @@ function clap(){
   for(var i=0;i<3;i++)setTimeout(function(){tone(1500,.07,.8,"square")},i*130);
 }
 
-function requestLock(){
-  if(!("wakeLock" in navigator))return;
-  navigator.wakeLock.request("screen").then(function(l){
-    lock=l;lock.addEventListener("release",function(){lock=null});
-  }).catch(function(){});
+var HAS_WL=("wakeLock" in navigator),wlPending=false;
+function wlStatus(){
+  var el=$("wlsub");if(!el)return;
+  el.textContent=!HAS_WL?"no soportado en este navegador":
+    !S.keepAwake?"desactivado":lock?"activo":"se activa al tocar";
 }
-function dropLock(){if(lock){lock.release().catch(function(){});lock=null}}
+function requestLock(){
+  if(!HAS_WL||!S.keepAwake||lock||wlPending)return;
+  if(document.visibilityState!=="visible")return;
+  wlPending=true;
+  navigator.wakeLock.request("screen").then(function(l){
+    wlPending=false;lock=l;
+    lock.addEventListener("release",function(){lock=null;wlStatus()});
+    wlStatus();
+  }).catch(function(){wlPending=false;wlStatus()});
+}
+function dropLock(){if(lock){lock.release().catch(function(){});lock=null}wlStatus()}
 document.addEventListener("visibilitychange",function(){
-  if(document.visibilityState==="visible"&&running)requestLock();
+  if(document.visibilityState==="visible")requestLock();else wlStatus();
 });
+document.addEventListener("click",function(){requestLock()},true);
 
 function step(){
   var now=Date.now(),dt=(now-last)/1000;last=now;
@@ -307,13 +351,34 @@ function start(){
 function stop(){
   running=false;clearInterval(tick);
   $("go").textContent=finished?"Empezar":"Seguir";
-  dropLock();
 }
 function reset(){stop();build();$("go").textContent="Empezar"}
 
-$("go").onclick=function(){running?stop():start()};
-$("rst").onclick=reset;
-$("stage").onclick=function(){running?stop():start()};
+function atStart(){return idx===0&&!finished&&left===seq[idx].d}
+function attemptStart(){
+  if(S.coros&&atStart()){
+    $("mtxt").textContent=S.mode==="circuit"
+      ?"Circuito 40/20: inicia el entrenamiento en el reloj antes de arrancar."
+      :"Inicia el entrenamiento en el reloj antes de arrancar.";
+    $("mask").className="mask";
+    actx();
+    return;
+  }
+  start();
+}
+function closeModal(){$("mask").className="mask hide"}
+$("mgo").onclick=function(ev){ev.stopPropagation();closeModal();start()};
+$("mnever").onclick=function(ev){
+  ev.stopPropagation();S.coros=false;save();render();closeModal();start();
+};
+$("mask").onclick=function(ev){if(ev.target===$("mask"))closeModal()};
+document.addEventListener("keydown",function(ev){
+  if(ev.key==="Escape"&&$("mask").className==="mask")closeModal();
+});
+
+$("go").onclick=function(){running?stop():attemptStart()};
+$("rst").onclick=function(){closeModal();reset()};
+$("stage").onclick=function(){running?stop():attemptStart()};
 
 Array.prototype.forEach.call(document.querySelectorAll(".step"),function(el){
   var key=el.getAttribute("data-k");
@@ -343,6 +408,12 @@ function render(){
   $("dayB").setAttribute("aria-pressed",S.day==="B");
   $("lrOn").setAttribute("aria-pressed",S.longRest);
   $("lrOff").setAttribute("aria-pressed",!S.longRest);
+  $("wlOn").setAttribute("aria-pressed",S.keepAwake);
+  $("wlOff").setAttribute("aria-pressed",!S.keepAwake);
+  $("wlOn").disabled=$("wlOff").disabled=!HAS_WL;
+  $("cwOn").setAttribute("aria-pressed",S.coros);
+  $("cwOff").setAttribute("aria-pressed",!S.coros);
+  wlStatus();
   $("tab-circuit").setAttribute("aria-selected",S.mode==="circuit");
   $("tab-box").setAttribute("aria-selected",S.mode==="box");
   $("cfg-circuit").className=S.mode==="circuit"?"":"hide";
@@ -355,11 +426,15 @@ $("dayA").onclick=function(){S.day="A";render();save();reset()};
 $("dayB").onclick=function(){S.day="B";render();save();reset()};
 $("lrOn").onclick=function(){S.longRest=true;render();save();reset()};
 $("lrOff").onclick=function(){S.longRest=false;render();save();reset()};
+$("wlOn").onclick=function(){S.keepAwake=true;save();requestLock();render()};
+$("wlOff").onclick=function(){S.keepAwake=false;save();dropLock();render()};
+$("cwOn").onclick=function(){S.coros=true;save();render()};
+$("cwOff").onclick=function(){S.coros=false;save();render()};
 
-if(!("wakeLock" in navigator))
-  $("wl").textContent="Tu navegador no soporta bloqueo de pantalla. Pon el auto-lock en Nunca mientras entrenas.";
+if(!HAS_WL)
+  $("wl").textContent="Tu navegador no soporta bloqueo de pantalla. Pon el auto-bloqueo en Nunca mientras entrenas.";
 
-render();build();
+render();build();requestLock();
 
 if("serviceWorker" in navigator)
   window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});
