@@ -37,7 +37,7 @@ work/rest configurados y duración real.
 ### Subirlas a un repo privado
 
 Con un token de GitHub, la app escribe cada sesión a
-`health-tracker/logs/timer/YYYY-MM-DD.json` del repo que le indiques.
+`sessions/YYYY-MM-DD.json` del repo que le indiques.
 
 1. Crea un repo **privado y dedicado** solo a estos logs (por ejemplo `timer-logs`).
 2. GitHub > Settings > Developer settings > **Fine-grained personal access tokens**

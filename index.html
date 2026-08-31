@@ -327,7 +327,7 @@ async function pushLog(){
 
   var ok=0,fail=0;
   for(var date in byDate){
-    var path="health-tracker/logs/timer/"+date+".json";
+    var path="sessions/"+date+".json";
     try{
       var cur=await ghFile(LOGCFG.repo,path,LOGCFG.token);
       var merged=cur.items.slice();
