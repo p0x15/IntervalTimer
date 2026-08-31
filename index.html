@@ -356,7 +356,11 @@ async function ghFile(repo,path,token){
   var r=await fetch("https://api.github.com/repos/"+repo+"/contents/"+path,
     {headers:{Authorization:"Bearer "+token,Accept:"application/vnd.github+json"}});
   if(r.status===404)return{sha:null,items:[]};
-  if(!r.ok)throw new Error("GitHub "+r.status);
+  if(!r.ok){
+    var d="";
+    try{d=(await r.json()).message||""}catch(e){}
+    throw new Error("GET "+r.status+(d?" · "+d:""));
+  }
   var j=await r.json();
   var items=[];
   try{items=JSON.parse(unb64(j.content.replace(/\n/g,"")))}catch(e){}
@@ -372,7 +376,7 @@ async function pushLog(){
   var byDate={};
   todo.forEach(function(e){(byDate[e.date]=byDate[e.date]||[]).push(e)});
 
-  var ok=0,fail=0;
+  var ok=0,fail=0,lastErr="";
   for(var date in byDate){
     var path="sessions/"+date+".json";
     try{
@@ -390,14 +394,18 @@ async function pushLog(){
         {method:"PUT",headers:{Authorization:"Bearer "+LOGCFG.token,
          Accept:"application/vnd.github+json","Content-Type":"application/json"},
          body:JSON.stringify(body)});
-      if(!put.ok)throw new Error("GitHub "+put.status);
+      if(!put.ok){
+        var detail="";
+        try{detail=(await put.json()).message||""}catch(e){}
+        throw new Error("PUT "+put.status+(detail?" · "+detail:""));
+      }
       var all=readLog();
       all.forEach(function(e){if(e.date===date&&!e.synced)e.synced=true});
       writeLog(all);ok++;
-    }catch(err){fail++}
+    }catch(err){fail++;lastErr=err&&err.message?err.message:"error desconocido"}
   }
   syncStatus();
-  if(fail)$("syncsub").textContent="No se pudo subir — se reintenta luego";
+  if(fail)$("syncsub").textContent="Falló: "+lastErr;
 }
 
 function logText(){

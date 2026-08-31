@@ -1,4 +1,4 @@
-const CACHE = "ringtimer-v10";
+const CACHE = "ringtimer-v11";
 const ASSETS = [
   "./",
   "./index.html",
