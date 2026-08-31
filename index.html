@@ -34,7 +34,20 @@ body{
   overscroll-behavior:none;
 }
 .wrap{max-width:520px;margin:0 auto;padding:12px 16px 28px;display:flex;flex-direction:column;min-height:100dvh}
-.tabs{display:flex;gap:6px;background:var(--panel);padding:4px;border-radius:12px;margin-bottom:14px}
+.topbar{display:flex;gap:8px;align-items:stretch;margin-bottom:14px}
+.tabs{display:flex;gap:6px;background:var(--panel);padding:4px;border-radius:12px;flex:1}
+.gear{
+  flex:0 0 46px;border:0;border-radius:12px;background:var(--panel);color:var(--muted);
+  display:grid;place-items:center;cursor:pointer;
+}
+.gear[aria-expanded="true"]{background:var(--panel-2);color:var(--text)}
+.gear:disabled{opacity:.35;cursor:default}
+.sechead{
+  margin:18px 4px 8px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);
+}
+.sechead:first-child{margin-top:2px}
+button.done{width:100%;margin-top:20px;background:var(--panel-2)}
 .tab{flex:1;border:0;background:transparent;color:var(--muted);font:inherit;font-size:14px;padding:10px 4px;border-radius:9px;cursor:pointer}
 .tab[aria-selected="true"]{background:var(--panel-2);color:var(--text)}
 .stage{
@@ -96,9 +109,9 @@ button.ghost{flex:0 0 84px;background:transparent;border:1px solid var(--line);c
 .modal h2{margin:0 0 8px;font-size:19px;font-weight:600}
 .modal p{margin:0 0 18px;font-size:14px;color:var(--muted);line-height:1.5}
 .modal .act{width:100%}
-.modal .skip{
+.skip{
   display:block;width:100%;margin-top:6px;border:0;background:transparent;color:var(--muted);
-  font:inherit;font-size:13px;padding:12px 4px;cursor:pointer;
+  font:inherit;font-size:13px;padding:12px 4px;cursor:pointer;text-align:center;
 }
 .tok{
   display:block;width:100%;box-sizing:border-box;margin-top:6px;
@@ -117,10 +130,21 @@ button.ghost{flex:0 0 84px;background:transparent;border:1px solid var(--line);c
 <body>
 <div class="wrap">
 
-  <div class="tabs" role="tablist">
-    <button class="tab" id="tab-circuit" role="tab" aria-selected="true">Circuito 40/20</button>
-    <button class="tab" id="tab-box" role="tab" aria-selected="false">Box</button>
+  <div class="topbar">
+    <div class="tabs" role="tablist">
+      <button class="tab" id="tab-circuit" role="tab" aria-selected="true">Circuito 40/20</button>
+      <button class="tab" id="tab-box" role="tab" aria-selected="false">Box</button>
+    </div>
+    <button class="gear" id="gear" aria-label="Ajustes" title="Ajustes">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"
+           fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <path d="M4 7h9M18 7h2M4 12h3M12 12h8M4 17h7M16 17h4"/>
+        <circle cx="15.5" cy="7" r="2"/><circle cx="9.5" cy="12" r="2"/><circle cx="13.5" cy="17" r="2"/>
+      </svg>
+    </button>
   </div>
+
+<div id="view-home">
 
   <div class="stage" id="stage">
     <div class="bar" id="bar"></div>
@@ -150,13 +174,6 @@ button.ghost{flex:0 0 84px;background:transparent;border:1px solid var(--line);c
         <div class="step" data-k="kb"><button data-d="-0.5">−</button><span class="val" id="v_kb">12 kg</span><button data-d="0.5">+</button></div>
       </div>
       <div class="row"><span class="lab">Rondas</span><div class="step" data-k="c_rounds"><button data-d="-1">−</button><span class="val" id="v_c_rounds">3</span><button data-d="1">+</button></div></div>
-      <div class="row"><span class="lab">Trabajo</span><div class="step" data-k="c_work"><button data-d="-5">−</button><span class="val" id="v_c_work">0:40</span><button data-d="5">+</button></div></div>
-      <div class="row"><span class="lab">Descanso</span><div class="step" data-k="c_rest"><button data-d="-5">−</button><span class="val" id="v_c_rest">0:20</span><button data-d="5">+</button></div></div>
-      <div class="row"><span class="lab">Preparación</span><div class="step" data-k="c_prep"><button data-d="-5">−</button><span class="val" id="v_c_prep">0:15</span><button data-d="5">+</button></div></div>
-      <div class="row">
-        <span class="lab">Pausa larga<span class="sub">5 min después de la ronda 4</span></span>
-        <div class="seg"><button id="lrOn" aria-pressed="true">Sí</button><button id="lrOff" aria-pressed="false">No</button></div>
-      </div>
     </div>
   </div>
 
@@ -164,13 +181,36 @@ button.ghost{flex:0 0 84px;background:transparent;border:1px solid var(--line);c
     <div class="card">
       <div class="row"><span class="lab">Rounds</span><div class="step" data-k="b_rounds"><button data-d="-1">−</button><span class="val" id="v_b_rounds">8</span><button data-d="1">+</button></div></div>
       <div class="row"><span class="lab">Duración</span><div class="step" data-k="b_work"><button data-d="-15">−</button><span class="val" id="v_b_work">3:00</span><button data-d="15">+</button></div></div>
-      <div class="row"><span class="lab">Descanso</span><div class="step" data-k="b_rest"><button data-d="-15">−</button><span class="val" id="v_b_rest">1:00</span><button data-d="15">+</button></div></div>
-      <div class="row"><span class="lab">Preparación</span><div class="step" data-k="b_prep"><button data-d="-5">−</button><span class="val" id="v_b_prep">0:25</span><button data-d="5">+</button></div></div>
-      <div class="row"><span class="lab">Aviso de fin<span class="sub">claqueo antes de cerrar el round</span></span><div class="step" data-k="b_warn"><button data-d="-5">−</button><span class="val" id="v_b_warn">0:10</span><button data-d="5">+</button></div></div>
     </div>
   </div>
 
-  <div class="card" style="margin-top:12px">
+  <p class="total" id="total">Total 9:00</p>
+  <p class="hint" id="wl">Toca la pantalla grande para pausar o seguir.</p>
+
+</div>
+
+<div id="view-settings" class="hide">
+
+  <p class="sechead">Circuito 40/20</p>
+  <div class="card" id="set-circuit">
+    <div class="row"><span class="lab">Trabajo</span><div class="step" data-k="c_work"><button data-d="-5">−</button><span class="val" id="v_c_work">0:40</span><button data-d="5">+</button></div></div>
+    <div class="row"><span class="lab">Descanso</span><div class="step" data-k="c_rest"><button data-d="-5">−</button><span class="val" id="v_c_rest">0:20</span><button data-d="5">+</button></div></div>
+    <div class="row"><span class="lab">Preparación</span><div class="step" data-k="c_prep"><button data-d="-5">−</button><span class="val" id="v_c_prep">0:15</span><button data-d="5">+</button></div></div>
+    <div class="row">
+      <span class="lab">Pausa larga<span class="sub">5 min después de la ronda 4</span></span>
+      <div class="seg"><button id="lrOn" aria-pressed="true">Sí</button><button id="lrOff" aria-pressed="false">No</button></div>
+    </div>
+  </div>
+
+  <p class="sechead">Box</p>
+  <div class="card" id="set-box">
+    <div class="row"><span class="lab">Descanso</span><div class="step" data-k="b_rest"><button data-d="-15">−</button><span class="val" id="v_b_rest">1:00</span><button data-d="15">+</button></div></div>
+    <div class="row"><span class="lab">Preparación</span><div class="step" data-k="b_prep"><button data-d="-5">−</button><span class="val" id="v_b_prep">0:25</span><button data-d="5">+</button></div></div>
+    <div class="row"><span class="lab">Aviso de fin<span class="sub">claqueo antes de cerrar el round</span></span><div class="step" data-k="b_warn"><button data-d="-5">−</button><span class="val" id="v_b_warn">0:10</span><button data-d="5">+</button></div></div>
+  </div>
+
+  <p class="sechead">Durante la sesión</p>
+  <div class="card">
     <div class="row">
       <span class="lab">Volumen<span class="sub">toca + para probar el sonido</span></span>
       <div class="step" data-k="vol"><button data-d="-25">−</button><span class="val" id="v_vol">150%</span><button data-d="25">+</button></div>
@@ -185,14 +225,15 @@ button.ghost{flex:0 0 84px;background:transparent;border:1px solid var(--line);c
     </div>
   </div>
 
-  <div class="card" style="margin-top:12px">
+  <p class="sechead">Registro</p>
+  <div class="card">
     <div class="row">
       <span class="lab">Guardar sesiones<span class="sub" id="logsub">se quedan en este teléfono</span></span>
       <div class="seg"><button id="lgOn" aria-pressed="false">Sí</button><button id="lgOff" aria-pressed="true">No</button></div>
     </div>
     <div id="syncbox" class="hide">
       <div class="row" style="display:block">
-        <span class="lab" style="margin-bottom:8px">Token de GitHub<span class="sub">opcional, para subirlas al vault</span></span>
+        <span class="lab" style="margin-bottom:8px">Token de GitHub<span class="sub">opcional, para subirlas a un repo privado</span></span>
         <input class="tok" id="tok" type="password" placeholder="github_pat_..." autocomplete="off" spellcheck="false">
         <input class="tok" id="repo" type="text" placeholder="usuario/repo-dedicado" autocomplete="off" spellcheck="false">
       </div>
@@ -204,8 +245,9 @@ button.ghost{flex:0 0 84px;background:transparent;border:1px solid var(--line);c
     </div>
   </div>
 
-  <p class="total" id="total">Total 9:00</p>
-  <p class="hint" id="wl">Toca la pantalla grande para pausar o seguir.</p>
+  <button class="act done" id="setdone">Listo</button>
+
+</div>
 
 </div>
 
@@ -507,6 +549,7 @@ function step(){
 }
 
 function start(){
+  showSettings(false);$("gear").disabled=true;
   if(finished)build();
   if(!sessionStart&&atStart())sessionStart=new Date();
   actx();running=true;last=Date.now();
@@ -517,7 +560,7 @@ function start(){
   if(idx===0&&left===s.d){if(s.k==="work"&&s.bell)bell(1);else tone(1050,.4,1)}
 }
 function stop(){
-  running=false;clearInterval(tick);
+  running=false;clearInterval(tick);$("gear").disabled=false;
   $("go").textContent=finished?"Empezar":"Seguir";
 }
 function reset(){
@@ -547,6 +590,19 @@ $("mask").onclick=function(ev){if(ev.target===$("mask"))closeModal()};
 document.addEventListener("keydown",function(ev){
   if(ev.key==="Escape"&&$("mask").className==="mask")closeModal();
 });
+
+function showSettings(on){
+  $("view-home").className=on?"hide":"";
+  $("view-settings").className=on?"":"hide";
+  $("gear").setAttribute("aria-expanded",on?"true":"false");
+  if(on)syncStatus();
+  window.scrollTo(0,0);
+}
+$("gear").onclick=function(ev){
+  ev.stopPropagation();
+  showSettings($("gear").getAttribute("aria-expanded")!=="true");
+};
+$("setdone").onclick=function(ev){ev.stopPropagation();showSettings(false)};
 
 $("go").onclick=function(){running?stop():attemptStart()};
 $("rst").onclick=function(){closeModal();reset()};
@@ -598,6 +654,11 @@ function render(){
   $("tab-box").setAttribute("aria-selected",S.mode==="box");
   $("cfg-circuit").className=S.mode==="circuit"?"":"hide";
   $("cfg-box").className=S.mode==="box"?"":"hide";
+  var head=document.querySelectorAll(".sechead");
+  $("set-circuit").className=S.mode==="circuit"?"card":"card hide";
+  head[0].className=S.mode==="circuit"?"sechead":"sechead hide";
+  $("set-box").className=S.mode==="box"?"card":"card hide";
+  head[1].className=S.mode==="box"?"sechead":"sechead hide";
 }
 function setMode(m){S.mode=m;render();save();reset()}
 $("tab-circuit").onclick=function(){setMode("circuit")};

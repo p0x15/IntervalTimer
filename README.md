@@ -2,6 +2,11 @@
 
 PWA de intervalos con dos modos: circuito 40/20 (guide de 12 semanas) y rounds de box.
 
+La pantalla principal deja solo lo que cambia sesión a sesión — día, peso y
+rondas. Todo lo que se configura una vez (tiempos, volumen, pantalla, registro)
+vive detrás del botón de ajustes, arriba a la derecha. El botón se bloquea
+mientras el timer corre, para no esconder el reloj a media serie.
+
 ## Publicar en GitHub Pages
 
 1. Crea un repo nuevo y sube estos archivos a la raíz.
