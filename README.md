@@ -32,7 +32,11 @@ siempre. Quien la use sin configurar esto no cambia en nada su experiencia.
 
 Al encenderlo, cada sesión terminada (o abandonada a media) se guarda en el
 teléfono: fecha, hora de inicio y fin, rondas planeadas contra completadas,
-work/rest configurados y duración real.
+work/rest configurados, **peso del kettlebell** y duración real.
+
+El peso se ajusta de medio en medio kilo y muestra la equivalencia en libras,
+que es como suelen venir marcados los kettlebells prestados. En 0 queda como
+"sin peso", para el circuito hecho solo con el movimiento.
 
 ### Subirlas a un repo privado
 

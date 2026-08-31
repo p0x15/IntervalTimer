@@ -145,6 +145,10 @@ button.ghost{flex:0 0 84px;background:transparent;border:1px solid var(--line);c
           <button id="dayB" aria-pressed="false">Mar/Vie</button>
         </div>
       </div>
+      <div class="row">
+        <span class="lab">Peso<span class="sub" id="kbsub">26 lb</span></span>
+        <div class="step" data-k="kb"><button data-d="-0.5">−</button><span class="val" id="v_kb">12 kg</span><button data-d="0.5">+</button></div>
+      </div>
       <div class="row"><span class="lab">Rondas</span><div class="step" data-k="c_rounds"><button data-d="-1">−</button><span class="val" id="v_c_rounds">3</span><button data-d="1">+</button></div></div>
       <div class="row"><span class="lab">Trabajo</span><div class="step" data-k="c_work"><button data-d="-5">−</button><span class="val" id="v_c_work">0:40</span><button data-d="5">+</button></div></div>
       <div class="row"><span class="lab">Descanso</span><div class="step" data-k="c_rest"><button data-d="-5">−</button><span class="val" id="v_c_rest">0:20</span><button data-d="5">+</button></div></div>
@@ -222,10 +226,10 @@ var MOVES={
   A:["Rotational reverse lunges","Cross body lifts + lunge","Halos"],
   B:["Oblique leans","Digging halos","Woodchoppers"]
 };
-var LIM={vol:[25,300,25],c_rounds:[1,15,1],c_work:[10,180,5],c_rest:[5,120,5],c_prep:[0,60,5],
+var LIM={vol:[25,300,25],kb:[0,60,0.5],c_rounds:[1,15,1],c_work:[10,180,5],c_rest:[5,120,5],c_prep:[0,60,5],
          b_rounds:[1,20,1],b_work:[30,600,15],b_rest:[15,300,15],b_prep:[0,60,5],b_warn:[0,60,5]};
 var S={mode:"circuit",day:"A",longRest:true,vol:150,keepAwake:true,coros:true,
-  c_rounds:3,c_work:40,c_rest:20,c_prep:15,
+  kb:12,c_rounds:3,c_work:40,c_rest:20,c_prep:15,
   b_rounds:8,b_work:180,b_rest:60,b_prep:25,b_warn:10};
 
 try{var saved=JSON.parse(localStorage.getItem("ringtimer")||"{}");
@@ -280,6 +284,7 @@ function recordSession(){
   };
   if(S.mode==="circuit"){
     e.day=S.day;e.moves=MOVES[S.day].slice();
+    e.kettlebell_kg=S.kb;
     e.work_s=S.c_work;e.rest_s=S.c_rest;e.prep_s=S.c_prep;e.long_rest=!!S.longRest;
   }else{
     e.work_s=S.b_work;e.rest_s=S.b_rest;e.prep_s=S.b_prep;e.warn_s=S.b_warn;
@@ -359,7 +364,7 @@ function logText(){
   return a.slice(-15).map(function(e){
     var head="Ring Timer · "+e.date+" "+e.start+"–"+e.end;
     var what=e.mode==="circuit"?("Circuito "+e.day+" · "+e.rounds_done+"/"+e.rounds_planned+
-      " rondas · "+e.work_s+"/"+e.rest_s):("Box · "+e.rounds_done+"/"+e.rounds_planned+
+      " rondas · "+e.work_s+"/"+e.rest_s+(e.kettlebell_kg?" · "+e.kettlebell_kg+"kg":"")):("Box · "+e.rounds_done+"/"+e.rounds_planned+
       " rounds · "+fmt(e.work_s)+" trabajo / "+fmt(e.rest_s)+" descanso");
     return head+"\n"+what+" · "+fmt(e.duration_s)+" total"+(e.completed?"":" · INCOMPLETA");
   }).join("\n\n");
@@ -553,15 +558,18 @@ Array.prototype.forEach.call(document.querySelectorAll(".step"),function(el){
     b.onclick=function(ev){
       ev.stopPropagation();
       var d=+b.getAttribute("data-d"),L=LIM[key];
-      S[key]=Math.min(L[1],Math.max(L[0],S[key]+d));
+      S[key]=Math.round((Math.min(L[1],Math.max(L[0],S[key]+d)))*10)/10;
       render();save();
-      if(key==="vol"){actx();tone(880,.16,.95);}else{reset();}
+      // el peso no altera la secuencia: cambiarlo a media sesión no debe reiniciarla
+      if(key==="vol"){actx();tone(880,.16,.95);}else if(key!=="kb"){reset();}
     };
   });
 });
 
 function render(){
   $("v_vol").textContent=Math.round(S.vol)+"%";
+  $("v_kb").textContent=S.kb>0?(S.kb+" kg"):"sin peso";
+  $("kbsub").textContent=S.kb>0?(Math.round(S.kb*2.2046)+" lb"):"solo movimiento";
   $("v_c_rounds").textContent=S.c_rounds;
   $("v_c_work").textContent=fmt(S.c_work);
   $("v_c_rest").textContent=fmt(S.c_rest);
