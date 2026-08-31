@@ -190,7 +190,7 @@ button.ghost{flex:0 0 84px;background:transparent;border:1px solid var(--line);c
       <div class="row" style="display:block">
         <span class="lab" style="margin-bottom:8px">Token de GitHub<span class="sub">opcional, para subirlas al vault</span></span>
         <input class="tok" id="tok" type="password" placeholder="github_pat_..." autocomplete="off" spellcheck="false">
-        <input class="tok" id="repo" type="text" placeholder="usuario/repo" autocomplete="off" spellcheck="false">
+        <input class="tok" id="repo" type="text" placeholder="usuario/repo-dedicado" autocomplete="off" spellcheck="false">
       </div>
       <div class="row">
         <span class="lab" id="syncsub">Sin sesiones pendientes</span>
@@ -238,7 +238,10 @@ function fmt(s){s=Math.max(0,Math.ceil(s));return Math.floor(s/60)+":"+String(s%
    Todo vive en localStorage de ESTE dispositivo. Si no hay token configurado
    nada sale del teléfono, así que la app funciona igual para quien no lo use. */
 var LOGKEY="ringtimer_log",CFGKEY="ringtimer_sync";
-var LOGCFG={on:false,token:"",repo:"p0x15/PMF_BRAIN"};
+// El repo destino debe ser uno DEDICADO a estos logs, no un vault personal:
+// el token vive en localStorage, que en GitHub Pages se comparte entre todos
+// los sitios del mismo usuario. Si se filtra, que el daño sea irrelevante.
+var LOGCFG={on:false,token:"",repo:"p0x15/timer-logs"};
 try{var lc=JSON.parse(localStorage.getItem(CFGKEY)||"{}");
   for(var lk in lc){if(lk in LOGCFG)LOGCFG[lk]=lc[lk]}}catch(e){}
 function saveCfg(){try{localStorage.setItem(CFGKEY,JSON.stringify(LOGCFG))}catch(e){}}

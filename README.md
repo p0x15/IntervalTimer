@@ -39,14 +39,26 @@ work/rest configurados y duración real.
 Con un token de GitHub, la app escribe cada sesión a
 `health-tracker/logs/timer/YYYY-MM-DD.json` del repo que le indiques.
 
-1. GitHub > Settings > Developer settings > **Fine-grained personal access tokens**
-2. **Repository access:** solo el repo destino. Nunca "todos".
-3. **Permissions > Contents: Read and write.** Nada más.
-4. Pega el token y el repo (`usuario/repo`) en los ajustes de la app.
+1. Crea un repo **privado y dedicado** solo a estos logs (por ejemplo `timer-logs`).
+2. GitHub > Settings > Developer settings > **Fine-grained personal access tokens**
+3. **Repository access:** solo ese repo. Nunca "todos", nunca un repo con otras cosas.
+4. **Permissions > Contents: Read and write.** Nada más.
+5. **Expiración:** 90 días. Renovarlo es un minuto.
+6. Pega el token y el repo (`usuario/repo`) en los ajustes de la app.
 
-El token vive en el `localStorage` de ese teléfono y no se sincroniza a ningún
-lado. Si el teléfono se pierde, revoca el token desde GitHub. Como el alcance es
-un solo repo y solo contenidos, el daño posible está acotado a ese repo.
+#### Por qué un repo dedicado y no tu vault
+
+El token se guarda en el `localStorage` del teléfono, y en GitHub Pages ese
+almacenamiento **se comparte entre todos los sitios del mismo usuario**
+(`usuario.github.io/proyecto-a` y `.../proyecto-b` son el mismo origen). Si
+tienes varios repos publicados en Pages, cualquiera de ellos puede leer el
+token de los demás.
+
+Por eso el alcance importa más que el secreto: si el token solo puede escribir
+en un repo que contiene JSONs de rondas de ejercicio, filtrarlo es irrelevante.
+Si puede escribir en tu vault personal, no lo es.
+
+Si pierdes el teléfono, revoca el token desde GitHub.
 
 Si no hay red al terminar, la sesión queda pendiente y se reintenta sola la
 próxima vez que abras la app. También hay un botón para copiar el resumen en
