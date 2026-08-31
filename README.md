@@ -25,6 +25,33 @@ python3 -m http.server 8000
 
 Luego abre `http://localhost:8000`. En localhost sí aplican las APIs seguras.
 
+## Registro de sesiones (opcional)
+
+Apagado por default: si no lo enciendes, la app no guarda ni manda nada, igual que
+siempre. Quien la use sin configurar esto no cambia en nada su experiencia.
+
+Al encenderlo, cada sesión terminada (o abandonada a media) se guarda en el
+teléfono: fecha, hora de inicio y fin, rondas planeadas contra completadas,
+work/rest configurados y duración real.
+
+### Subirlas a un repo privado
+
+Con un token de GitHub, la app escribe cada sesión a
+`health-tracker/logs/timer/YYYY-MM-DD.json` del repo que le indiques.
+
+1. GitHub > Settings > Developer settings > **Fine-grained personal access tokens**
+2. **Repository access:** solo el repo destino. Nunca "todos".
+3. **Permissions > Contents: Read and write.** Nada más.
+4. Pega el token y el repo (`usuario/repo`) en los ajustes de la app.
+
+El token vive en el `localStorage` de ese teléfono y no se sincroniza a ningún
+lado. Si el teléfono se pierde, revoca el token desde GitHub. Como el alcance es
+un solo repo y solo contenidos, el daño posible está acotado a ese repo.
+
+Si no hay red al terminar, la sesión queda pendiente y se reintenta sola la
+próxima vez que abras la app. También hay un botón para copiar el resumen en
+texto, por si prefieres pegarlo a mano.
+
 ## Notas
 
 - El audio necesita un toque tuyo para arrancar; el botón de empezar cuenta.

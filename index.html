@@ -100,6 +100,17 @@ button.ghost{flex:0 0 84px;background:transparent;border:1px solid var(--line);c
   display:block;width:100%;margin-top:6px;border:0;background:transparent;color:var(--muted);
   font:inherit;font-size:13px;padding:12px 4px;cursor:pointer;
 }
+.tok{
+  display:block;width:100%;box-sizing:border-box;margin-top:6px;
+  background:var(--panel-2);border:1px solid var(--line);border-radius:10px;
+  color:var(--text);font:inherit;font-size:14px;padding:10px 12px;
+}
+.tok::placeholder{color:var(--muted)}
+.mini{
+  border:0;border-radius:10px;background:var(--panel-2);color:var(--text);
+  font:inherit;font-size:14px;padding:8px 16px;cursor:pointer;
+}
+.mini:disabled{opacity:.45}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -170,6 +181,25 @@ button.ghost{flex:0 0 84px;background:transparent;border:1px solid var(--line);c
     </div>
   </div>
 
+  <div class="card" style="margin-top:12px">
+    <div class="row">
+      <span class="lab">Guardar sesiones<span class="sub" id="logsub">se quedan en este teléfono</span></span>
+      <div class="seg"><button id="lgOn" aria-pressed="false">Sí</button><button id="lgOff" aria-pressed="true">No</button></div>
+    </div>
+    <div id="syncbox" class="hide">
+      <div class="row" style="display:block">
+        <span class="lab" style="margin-bottom:8px">Token de GitHub<span class="sub">opcional, para subirlas al vault</span></span>
+        <input class="tok" id="tok" type="password" placeholder="github_pat_..." autocomplete="off" spellcheck="false">
+        <input class="tok" id="repo" type="text" placeholder="usuario/repo" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="row">
+        <span class="lab" id="syncsub">Sin sesiones pendientes</span>
+        <button class="mini" id="dosync">Subir</button>
+      </div>
+      <button class="skip" id="copylog">Copiar resumen al portapapeles</button>
+    </div>
+  </div>
+
   <p class="total" id="total">Total 9:00</p>
   <p class="hint" id="wl">Toca la pantalla grande para pausar o seguir.</p>
 
@@ -203,6 +233,134 @@ try{var saved=JSON.parse(localStorage.getItem("ringtimer")||"{}");
 function save(){try{localStorage.setItem("ringtimer",JSON.stringify(S))}catch(e){}}
 
 function fmt(s){s=Math.max(0,Math.ceil(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
+
+/* ---------- registro de sesiones ----------
+   Todo vive en localStorage de ESTE dispositivo. Si no hay token configurado
+   nada sale del teléfono, así que la app funciona igual para quien no lo use. */
+var LOGKEY="ringtimer_log",CFGKEY="ringtimer_sync";
+var LOGCFG={on:false,token:"",repo:"p0x15/PMF_BRAIN"};
+try{var lc=JSON.parse(localStorage.getItem(CFGKEY)||"{}");
+  for(var lk in lc){if(lk in LOGCFG)LOGCFG[lk]=lc[lk]}}catch(e){}
+function saveCfg(){try{localStorage.setItem(CFGKEY,JSON.stringify(LOGCFG))}catch(e){}}
+
+function readLog(){try{return JSON.parse(localStorage.getItem(LOGKEY)||"[]")}catch(e){return[]}}
+function writeLog(a){try{localStorage.setItem(LOGKEY,JSON.stringify(a))}catch(e){}}
+
+var sessionStart=null;
+
+function pad2(n){return String(n).padStart(2,"0")}
+function localDate(d){return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate())}
+function localTime(d){return pad2(d.getHours())+":"+pad2(d.getMinutes())+":"+pad2(d.getSeconds())}
+
+function roundsDone(){
+  if(finished)return totalRounds();
+  var s=seq[idx];
+  // la ronda en curso solo cuenta si ya se pasó de su último bloque de trabajo
+  return s?Math.max(0,s.r-1):0;
+}
+
+function recordSession(){
+  if(!LOGCFG.on||!sessionStart)return;
+  var end=new Date(),done=roundsDone();
+  if(!finished&&done===0)  {sessionStart=null;return;}   // se abortó antes de cerrar una ronda
+  var e={
+    id:sessionStart.toISOString(),
+    date:localDate(sessionStart),
+    start:localTime(sessionStart),
+    end:localTime(end),
+    duration_s:Math.round((end-sessionStart)/1000),
+    mode:S.mode,
+    rounds_planned:totalRounds(),
+    rounds_done:done,
+    completed:!!finished,
+    synced:false
+  };
+  if(S.mode==="circuit"){
+    e.day=S.day;e.moves=MOVES[S.day].slice();
+    e.work_s=S.c_work;e.rest_s=S.c_rest;e.prep_s=S.c_prep;e.long_rest=!!S.longRest;
+  }else{
+    e.work_s=S.b_work;e.rest_s=S.b_rest;e.prep_s=S.b_prep;e.warn_s=S.b_warn;
+  }
+  var a=readLog();
+  if(!a.some(function(x){return x.id===e.id})){a.push(e);writeLog(a)}
+  sessionStart=null;
+  syncStatus();
+  if(LOGCFG.token)pushLog();
+}
+
+function pending(){return readLog().filter(function(e){return !e.synced})}
+
+function syncStatus(){
+  var n=pending().length;
+  $("syncsub").textContent=n===0?"Sin sesiones pendientes"
+    :n+(n===1?" sesión pendiente":" sesiones pendientes");
+  $("dosync").disabled=(n===0||!LOGCFG.token);
+  $("logsub").textContent=!LOGCFG.on?"apagado"
+    :(LOGCFG.token?"se suben al vault":"se quedan en este teléfono");
+}
+
+function b64(str){return btoa(unescape(encodeURIComponent(str)))}
+function unb64(str){return decodeURIComponent(escape(atob(str)))}
+
+async function ghFile(repo,path,token){
+  var r=await fetch("https://api.github.com/repos/"+repo+"/contents/"+path,
+    {headers:{Authorization:"Bearer "+token,Accept:"application/vnd.github+json"}});
+  if(r.status===404)return{sha:null,items:[]};
+  if(!r.ok)throw new Error("GitHub "+r.status);
+  var j=await r.json();
+  var items=[];
+  try{items=JSON.parse(unb64(j.content.replace(/\n/g,"")))}catch(e){}
+  return{sha:j.sha,items:Array.isArray(items)?items:[]};
+}
+
+async function pushLog(){
+  if(!LOGCFG.token||!LOGCFG.repo)return;
+  var todo=pending();
+  if(!todo.length)return;
+  $("dosync").disabled=true;$("syncsub").textContent="Subiendo…";
+
+  var byDate={};
+  todo.forEach(function(e){(byDate[e.date]=byDate[e.date]||[]).push(e)});
+
+  var ok=0,fail=0;
+  for(var date in byDate){
+    var path="health-tracker/logs/timer/"+date+".json";
+    try{
+      var cur=await ghFile(LOGCFG.repo,path,LOGCFG.token);
+      var merged=cur.items.slice();
+      byDate[date].forEach(function(e){
+        var copy={};for(var k in e){if(k!=="synced")copy[k]=e[k]}
+        if(!merged.some(function(x){return x.id===copy.id}))merged.push(copy);
+      });
+      merged.sort(function(a,b){return a.id<b.id?-1:1});
+      var body={message:"timer: "+date+" ("+byDate[date].length+")",
+                content:b64(JSON.stringify(merged,null,2)+"\n")};
+      if(cur.sha)body.sha=cur.sha;
+      var put=await fetch("https://api.github.com/repos/"+LOGCFG.repo+"/contents/"+path,
+        {method:"PUT",headers:{Authorization:"Bearer "+LOGCFG.token,
+         Accept:"application/vnd.github+json","Content-Type":"application/json"},
+         body:JSON.stringify(body)});
+      if(!put.ok)throw new Error("GitHub "+put.status);
+      var all=readLog();
+      all.forEach(function(e){if(e.date===date&&!e.synced)e.synced=true});
+      writeLog(all);ok++;
+    }catch(err){fail++}
+  }
+  syncStatus();
+  if(fail)$("syncsub").textContent="No se pudo subir — se reintenta luego";
+}
+
+function logText(){
+  var a=readLog();
+  if(!a.length)return"Sin sesiones registradas.";
+  return a.slice(-15).map(function(e){
+    var head="Ring Timer · "+e.date+" "+e.start+"–"+e.end;
+    var what=e.mode==="circuit"?("Circuito "+e.day+" · "+e.rounds_done+"/"+e.rounds_planned+
+      " rondas · "+e.work_s+"/"+e.rest_s):("Box · "+e.rounds_done+"/"+e.rounds_planned+
+      " rounds · "+fmt(e.work_s)+" trabajo / "+fmt(e.rest_s)+" descanso");
+    return head+"\n"+what+" · "+fmt(e.duration_s)+" total"+(e.completed?"":" · INCOMPLETA");
+  }).join("\n\n");
+}
 
 var seq=[],idx=0,left=0,running=false,tick=null,last=0,finished=false,warned=false,lock=null;
 
@@ -327,6 +485,7 @@ function step(){
     if(idx>=seq.length-1){
       finished=true;left=0;stop();
       if(S.mode==="box")bell(3);else tone(520,.9,1);
+      recordSession();
       paint();return;
     }
     idx++;left=seq[idx].d;warned=false;
@@ -341,6 +500,7 @@ function step(){
 
 function start(){
   if(finished)build();
+  if(!sessionStart&&atStart())sessionStart=new Date();
   actx();running=true;last=Date.now();
   tick=setInterval(step,80);
   $("go").textContent="Pausa";
@@ -352,7 +512,11 @@ function stop(){
   running=false;clearInterval(tick);
   $("go").textContent=finished?"Empezar":"Seguir";
 }
-function reset(){stop();build();$("go").textContent="Empezar"}
+function reset(){
+  if(sessionStart&&!finished)recordSession();   // abandonar a media sesión también cuenta
+  sessionStart=null;
+  stop();build();$("go").textContent="Empezar";
+}
 
 function atStart(){return idx===0&&!finished&&left===seq[idx].d}
 function attemptStart(){
@@ -413,6 +577,11 @@ function render(){
   $("wlOn").disabled=$("wlOff").disabled=!HAS_WL;
   $("cwOn").setAttribute("aria-pressed",S.coros);
   $("cwOff").setAttribute("aria-pressed",!S.coros);
+  $("lgOn").setAttribute("aria-pressed",LOGCFG.on);
+  $("lgOff").setAttribute("aria-pressed",!LOGCFG.on);
+  $("syncbox").className=LOGCFG.on?"":"hide";
+  if($("tok").value!==LOGCFG.token)$("tok").value=LOGCFG.token;
+  if($("repo").value!==LOGCFG.repo)$("repo").value=LOGCFG.repo;
   wlStatus();
   $("tab-circuit").setAttribute("aria-selected",S.mode==="circuit");
   $("tab-box").setAttribute("aria-selected",S.mode==="box");
@@ -431,10 +600,27 @@ $("wlOff").onclick=function(){S.keepAwake=false;save();dropLock();render()};
 $("cwOn").onclick=function(){S.coros=true;save();render()};
 $("cwOff").onclick=function(){S.coros=false;save();render()};
 
+$("lgOn").onclick=function(){LOGCFG.on=true;saveCfg();render();syncStatus()};
+$("lgOff").onclick=function(){LOGCFG.on=false;saveCfg();render();syncStatus()};
+$("tok").oninput=function(){LOGCFG.token=$("tok").value.trim();saveCfg();syncStatus()};
+$("repo").oninput=function(){LOGCFG.repo=$("repo").value.trim();saveCfg();syncStatus()};
+$("dosync").onclick=function(ev){ev.stopPropagation();pushLog()};
+$("copylog").onclick=function(ev){
+  ev.stopPropagation();
+  var t=logText();
+  function done(){$("copylog").textContent="Copiado";
+    setTimeout(function(){$("copylog").textContent="Copiar resumen al portapapeles"},1400)}
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(done).catch(function(){prompt("Copia esto:",t)});
+  }else{prompt("Copia esto:",t)}
+};
+
 if(!HAS_WL)
   $("wl").textContent="Tu navegador no soporta bloqueo de pantalla. Pon el auto-bloqueo en Nunca mientras entrenas.";
 
-render();build();requestLock();
+render();build();requestLock();syncStatus();
+// reintento de subida al abrir la app, por si la última sesión se grabó sin red
+if(LOGCFG.on&&LOGCFG.token&&pending().length)pushLog();
 
 if("serviceWorker" in navigator){
   // Si entra un service worker nuevo, recarga para aplicar la versión al
