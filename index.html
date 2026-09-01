@@ -354,7 +354,9 @@ function unb64(str){return decodeURIComponent(escape(atob(str)))}
 
 async function ghFile(repo,path,token){
   var r=await fetch("https://api.github.com/repos/"+repo+"/contents/"+path,
-    {headers:{Authorization:"Bearer "+token,Accept:"application/vnd.github+json"}});
+    {cache:"no-store",
+     headers:{Authorization:"Bearer "+token,Accept:"application/vnd.github+json",
+              "If-None-Match":""}});
   if(r.status===404)return{sha:null,items:[]};
   if(!r.ok){
     var d="";
@@ -390,10 +392,29 @@ async function pushLog(){
       var body={message:"timer: "+date+" ("+byDate[date].length+")",
                 content:b64(JSON.stringify(merged,null,2)+"\n")};
       if(cur.sha)body.sha=cur.sha;
-      var put=await fetch("https://api.github.com/repos/"+LOGCFG.repo+"/contents/"+path,
-        {method:"PUT",headers:{Authorization:"Bearer "+LOGCFG.token,
-         Accept:"application/vnd.github+json","Content-Type":"application/json"},
-         body:JSON.stringify(body)});
+      var enviar=function(b){
+        return fetch("https://api.github.com/repos/"+LOGCFG.repo+"/contents/"+path,
+          {method:"PUT",headers:{Authorization:"Bearer "+LOGCFG.token,
+           Accept:"application/vnd.github+json","Content-Type":"application/json"},
+           body:JSON.stringify(b)});
+      };
+      var put=await enviar(body);
+
+      // 409/422 = el sha que mandamos no corresponde al archivo actual.
+      // Se relee la versión buena, se remezcla sobre ella y se reintenta.
+      if(put.status===409||put.status===422){
+        var fresco=await ghFile(LOGCFG.repo,path,LOGCFG.token);
+        var remezcla=fresco.items.slice();
+        byDate[date].forEach(function(e){
+          var c={};for(var k in e){if(k!=="synced")c[k]=e[k]}
+          if(!remezcla.some(function(x){return x.id===c.id}))remezcla.push(c);
+        });
+        remezcla.sort(function(a,b){return a.id<b.id?-1:1});
+        body.content=b64(JSON.stringify(remezcla,null,2)+"\n");
+        if(fresco.sha)body.sha=fresco.sha; else delete body.sha;
+        put=await enviar(body);
+      }
+
       if(!put.ok){
         var detail="";
         try{detail=(await put.json()).message||""}catch(e){}
