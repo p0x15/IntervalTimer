@@ -449,11 +449,14 @@ function build(){
   if(S.mode==="circuit"){
     if(S.c_prep>0)seq.push({k:"prep",n:"Prepárate",d:S.c_prep,r:1});
     for(r=1;r<=S.c_rounds;r++){
+      var lr=S.longRest&&r===4&&S.c_rounds>4;
+      var lastRound=r===S.c_rounds;
       for(i=0;i<3;i++){
         seq.push({k:"work",n:MOVES[S.day][i],d:S.c_work,r:r});
-        seq.push({k:"rest",n:"Descanso",d:S.c_rest,r:r});
+        // tras el 3er movimiento no va descanso de 20s: o entra la pausa larga, o se acabó
+        if(i<2||!(lr||lastRound))seq.push({k:"rest",n:"Descanso",d:S.c_rest,r:r});
       }
-      if(S.longRest&&r===4&&S.c_rounds>4)seq.push({k:"rest",n:"Pausa larga",d:300,r:r});
+      if(lr)seq.push({k:"rest",n:"Pausa larga",d:300,r:r});
     }
   }else{
     if(S.b_prep>0)seq.push({k:"prep",n:"Prepárate",d:S.b_prep,r:1});
