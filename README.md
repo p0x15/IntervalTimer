@@ -1,11 +1,52 @@
 # Ring Timer
 
-PWA de intervalos con dos modos: circuito 40/20 (guide de 12 semanas) y rounds de box.
+PWA de intervalos con tres modos: circuito 40/20 (guide de 12 semanas), rounds de box
+y fuerza (bloque 2: pierna en gym + calistenia, 13 semanas).
 
 La pantalla principal deja solo lo que cambia sesión a sesión — día, peso y
 rondas. Todo lo que se configura una vez (tiempos, volumen, pantalla, registro)
 vive detrás del botón de ajustes, arriba a la derecha. El botón se bloquea
 mientras el timer corre, para no esconder el reloj a media serie.
+
+## Modo Fuerza
+
+Para días de pesas en pares de músculos que no compiten: **una serie por
+intervalo**, la campana suena al inicio de cada uno y en lo que queda se descansa.
+
+- En la pantalla principal eliges el **día** (Pierna A / B, Calistenia A / B) y la
+  **semana del bloque** (1–13). Los dos se proponen solos según la fecha
+  (semana 1 = lun 16-nov-2026; lun/mar/jue/vie → Pierna A / Cali A / Pierna B / Cali B).
+- La semana define las series de cada ejercicio. Semanas 7–8 no hay pierna (viaje).
+- Durante el intervalo se ve en grande el ejercicio, las reps objetivo, "serie 2 / 3"
+  y qué sigue. La búlgara son dos intervalos: izquierda y derecha.
+- Entre bloques aparece "Cambia de estación" y el reloj espera un toque.
+- Intervalos (pierna 1:30, máquinas 1:15, calistenia 1:20) y preparación, en ajustes.
+- Al terminar (o abandonar con series hechas) se puede anotar peso, reps de cada
+  serie y RIR por ejercicio. Se guarda en la misma entrada y se vuelve a subir.
+
+Los presets viven en `STRENGTH` dentro de `index.html`.
+
+### Esquema del registro en modo fuerza
+
+Mismos campos base que los otros modos (`id`, `date`, `start`, `end`,
+`duration_s`, `mode`, `rounds_planned`, `rounds_done`, `completed`). Aquí
+`rounds_*` cuentan **intervalos** (la búlgara cuenta 2 por serie). Además:
+
+```json
+{
+  "mode": "strength", "day": "pierna_a", "day_name": "Pierna A", "week": 3, "prep_s": 15,
+  "blocks": [
+    {"id": "A", "interval_s": 90, "exercises": [
+      {"name": "Sentadilla", "variant": "goblet", "reps_target": "6–10 reps",
+       "sets_planned": 3, "sets_done": 3, "weight_kg": 20, "reps": [10, 9, 8], "rir": 2}
+    ]}
+  ],
+  "final": "I-Y-W boca abajo · 2 × 8"
+}
+```
+
+`weight_kg`, `reps` y `rir` solo aparecen si se anotaron. `sides: 2` marca la búlgara.
+Una serie cuenta como hecha cuando su intervalo pasó de la mitad.
 
 ## Publicar en GitHub Pages
 
