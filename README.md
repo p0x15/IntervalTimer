@@ -21,8 +21,35 @@ intervalo**, la campana suena al inicio de cada uno y en lo que queda se descans
   y qué sigue. La búlgara son dos intervalos: izquierda y derecha.
 - Entre bloques aparece "Cambia de estación" y el reloj espera un toque.
 - Intervalos (pierna 1:30, máquinas 1:15, calistenia 1:20) y preparación, en ajustes.
-- Al terminar (o abandonar con series hechas) se puede anotar peso, reps de cada
-  serie y RIR por ejercicio. Se guarda en la misma entrada y se vuelve a subir.
+- **Anotar serie por serie, sin pausar.** Debajo de Pausa/Reiniciar aparece el botón
+  "Anotar serie N · ejercicio" en cuanto arranca el primer intervalo de trabajo. Abre
+  una hoja con reps y peso en grande (botones −/+ de 78 px) y tres botones de
+  esfuerzo: **Fácil · Bien · Duro**. Tocar uno guarda y cierra, así que con el
+  prellenado bien son **2 toques por serie** (abrir + calificar). "Guardar sin
+  calificar" queda como opción chica. El reloj sigue corriendo arriba y en la propia
+  hoja, y la campana suena igual. Tocar el escenario sigue siendo pausa: el botón es aparte.
+  - **Unidad lb / kg:** la píldora bajo el peso cambia la unidad (no convierte el
+    número: dice en qué está). Por default **lb**, que es como vienen marcadas las
+    mancuernas y máquinas del club; se recuerda por ejercicio. −/+ suben 5 lb o 2.5 kg.
+  - Apunta al intervalo de trabajo en curso; durante la preparación o el cambio de
+    estación, al último que pasó. "‹ la serie anterior" corrige o completa la de antes.
+  - Ya anotada, el botón se pone verde con lo capturado ("✓ Sentadilla · 10 × 35 lb ·
+    bien — editar") y un toque la reabre.
+  - **Prellenado:** reps y peso de la serie anterior de ese ejercicio hoy; si es la
+    primera, lo último que se usó en ese ejercicio **ese mismo día de entrenamiento**
+    (Pierna A ≠ Pierna B, goblet ≠ con barra), con su unidad, guardado en
+    `localStorage` (`ringtimer_weights`); si nunca se anotó, el mínimo del rango de reps. Casi
+    siempre basta con ajustar las reps y tocar Listo.
+  - En calistenia el peso vacío = sin peso. "−" hasta 0 también lo vacía.
+  - Una serie anotada cuenta como hecha aunque su intervalo no haya llegado a la mitad.
+  - Si la sesión termina con la hoja abierta, lo que tenía se guarda.
+- **Búlgara (dos intervalos por serie):** cada lado se anota en su intervalo
+  (izquierda, derecha). En el registro, `reps[i]` es **el lado más bajo** de la serie
+  —el que decide si ya toca subir peso en la progresión doble— y el detalle va en
+  `reps_by_side`. El esfuerzo de la serie es el del lado más duro.
+- Al terminar (o abandonar con series hechas) se abre "Anota la sesión" **ya llena** con
+  lo capturado (el peso en la unidad en que se anotó): el RIR es opcional, o corregir algo. Se guarda en la misma entrada y se
+  vuelve a subir. Si se apaga "Anotar pesos al final", lo capturado se guarda igual.
 
 Los presets viven en `STRENGTH` dentro de `index.html`.
 
@@ -46,7 +73,33 @@ Mismos campos base que los otros modos (`id`, `date`, `start`, `end`,
 ```
 
 `weight_kg`, `reps` y `rir` solo aparecen si se anotaron. `sides: 2` marca la búlgara.
-Una serie cuenta como hecha cuando su intervalo pasó de la mitad.
+Una serie cuenta como hecha cuando su intervalo pasó de la mitad (o cuando se anotó).
+
+Campos opcionales que salen de la captura serie por serie (todo sigue siendo
+compatible: quien solo lee `weight_kg`, `reps` y `rir` no pierde nada):
+
+| Campo | Cuándo aparece | Qué es |
+|---|---|---|
+| `reps[i]` = `null` | se anotó una serie posterior pero no esta | serie hecha sin reps anotadas; las faltantes al final simplemente no están |
+| `weight_kg` | — | peso de la **última** serie anotada con peso, **siempre en kg** (si se anotó en lb, convertido a 0.1 kg) |
+| `weight_unit` + `weight_lb` | si ese peso se anotó en lb | `"lb"` y el número tal como se anotó |
+| `weights_kg[]` | solo si el peso **cambió** entre series | peso de cada serie en kg, alineado con `reps` (`null` = sin peso) |
+| `weights_lb[]` | igual, y si todas las series con peso fueron en lb | lo mismo en lb, tal como se anotó |
+| `effort[]` | si se calificó alguna serie | `"facil"` / `"bien"` / `"duro"` por serie (`null` = sin calificar) |
+| `reps_by_side[]` | búlgara (`sides: 2`) | `[izquierda, derecha]` por serie; `reps[i]` es el menor de los dos |
+
+```json
+{"name": "Sentadilla", "variant": "goblet", "sets_planned": 2, "sets_done": 2,
+ "weight_kg": 15.9, "weight_unit": "lb", "weight_lb": 35, "reps": [10, 10], "effort": ["bien", "bien"]},
+{"name": "Búlgara", "sides": 2, "sets_planned": 2, "sets_done": 2, "weight_kg": 12.5,
+ "reps": [10, 9], "reps_by_side": [[10, 10], [10, 9]], "effort": ["bien", "duro"]},
+{"name": "Curl femoral", "sets_planned": 2, "sets_done": 2, "weight_kg": 38.6, "weight_unit": "lb",
+ "weight_lb": 85, "weights_kg": [34, 38.6], "weights_lb": [75, 85], "reps": [15, 15],
+ "effort": ["bien", "duro"], "rir": 1}
+```
+
+Si en el formulario final se corrige a mano el peso, `weights_kg`/`weights_lb` se borran; si se
+corrigen las reps, `reps_by_side` se borra (ya no cuadrarían).
 
 ## Publicar en GitHub Pages
 
