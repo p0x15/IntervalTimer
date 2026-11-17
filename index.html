@@ -144,6 +144,34 @@ button.ghost{flex:0 0 84px;background:transparent;border:1px solid var(--line);c
 .nx .f{display:flex;gap:6px;margin-top:6px}
 .nx .tok{margin-top:0;padding:9px 10px}
 .nx .w{flex:0 0 26%}.nx .r{flex:1}.nx .i{flex:0 0 20%}
+.nx .ex{font-size:12px;color:var(--muted);margin-top:4px}
+/* anotar la serie sin pausar: botón propio (el escenario sigue siendo pausa) */
+button.logset{width:100%;margin:-6px 0 18px;padding:20px 8px;font-size:18px;background:var(--panel-2);
+  border:2px solid var(--blue);color:var(--text)}
+button.logset.ok{border-color:var(--green)}
+.sheet{position:fixed;inset:0;z-index:40;background:rgba(4,8,13,.55);display:flex;align-items:flex-end;justify-content:center}
+.sheet.hide{display:none}
+.sh{width:100%;max-width:520px;background:var(--panel);border-radius:22px 22px 0 0;border-top:1px solid var(--line);
+  padding:16px 16px calc(14px + env(safe-area-inset-bottom))}
+.shtop{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px}
+.shtop .t{flex:1;min-width:0}
+.shtop b{display:block;font-size:19px;font-weight:600;line-height:1.25}
+.shtop .s{font-size:13px;color:var(--muted)}
+.shclock{font-family:"DIN Alternate",ui-monospace,"SF Mono",Menlo,monospace;font-variant-numeric:tabular-nums;
+  font-size:15px;color:var(--muted);text-align:right;white-space:nowrap}
+.shclock b{display:block;font-size:26px;color:var(--text);font-weight:500}
+.big{display:flex;align-items:center;gap:10px;margin:0 0 12px}
+.big button{flex:0 0 78px;height:78px;border:0;border-radius:16px;background:var(--panel-2);color:var(--text);
+  font:inherit;font-size:34px;line-height:1;cursor:pointer}
+.big button:active{transform:scale(.97)}
+.big label{flex:1;display:flex;flex-direction:column;align-items:center}
+.big input{width:100%;background:transparent;border:0;color:var(--text);text-align:center;
+  font-family:"DIN Alternate",ui-monospace,"SF Mono",Menlo,monospace;font-size:52px;font-weight:500;line-height:1.1;padding:0}
+.big input::placeholder{color:var(--muted)}
+.big small{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.sh .act.go{width:100%;padding:22px 8px;font-size:19px}
+.shrow{display:flex;gap:8px}
+.shrow .skip{flex:1}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -181,6 +209,7 @@ button.ghost{flex:0 0 84px;background:transparent;border:1px solid var(--line);c
     <button class="act go" id="go">Empezar</button>
     <button class="act ghost" id="rst">Reiniciar</button>
   </div>
+  <button class="act logset hide" id="logset">Anotar serie</button>
 
   <div id="cfg-circuit">
     <div class="card">
@@ -304,7 +333,7 @@ button.ghost{flex:0 0 84px;background:transparent;border:1px solid var(--line);c
 
 <div id="view-notes" class="hide">
   <p class="sechead">Anota la sesión</p>
-  <p class="hint" style="margin:0 4px 12px">Peso en kg, reps de cada serie separadas por espacio, RIR de la última. Lo que dejes vacío no se guarda.</p>
+  <p class="hint" style="margin:0 4px 12px">Lo que anotaste en cada serie ya está aquí: revísalo y pon el RIR de la última. Peso en kg, reps de cada serie separadas por espacio (– = serie sin anotar). Lo que dejes vacío no se guarda.</p>
   <div id="notes-list"></div>
   <div class="controls">
     <button class="act go" id="nsave">Guardar</button>
@@ -312,6 +341,30 @@ button.ghost{flex:0 0 84px;background:transparent;border:1px solid var(--line);c
   </div>
 </div>
 
+</div>
+
+<div class="sheet hide" id="sheet">
+  <div class="sh" role="dialog" aria-modal="true" aria-labelledby="shname">
+    <div class="shtop">
+      <div class="t"><b id="shname">Sentadilla</b><span class="s" id="shset">serie 1 / 3</span></div>
+      <div class="shclock" id="shclock"></div>
+    </div>
+    <div class="big">
+      <button type="button" data-f="r" data-d="-1" aria-label="Una rep menos">−</button>
+      <label><input id="shreps" inputmode="numeric" autocomplete="off" placeholder="–"><small>reps</small></label>
+      <button type="button" data-f="r" data-d="1" aria-label="Una rep más">+</button>
+    </div>
+    <div class="big">
+      <button type="button" data-f="w" data-d="-2.5" aria-label="2.5 kg menos">−</button>
+      <label><input id="shkg" inputmode="decimal" autocomplete="off" placeholder="–"><small id="shkgl">kg</small></label>
+      <button type="button" data-f="w" data-d="2.5" aria-label="2.5 kg más">+</button>
+    </div>
+    <button class="act go" id="shok">Listo</button>
+    <div class="shrow">
+      <button class="skip" id="shprev">‹ la serie anterior</button>
+      <button class="skip" id="shx">Cancelar</button>
+    </div>
+  </div>
 </div>
 
 <div class="mask hide" id="mask">
@@ -450,7 +503,7 @@ function localTime(d){return pad2(d.getHours())+":"+pad2(d.getMinutes())+":"+pad
 function intervalDone(j){
   var s=seq[j];
   if(!s||s.k!=="work")return false;
-  if(finished||j<idx)return true;
+  if(finished||j<idx||s.cap)return true;   // anotada = hecha, aunque vaya antes de la mitad
   return j===idx&&left<=s.d/2;
 }
 function roundsDone(){
@@ -496,6 +549,7 @@ function recordSession(){
         var o={name:x.name,reps_target:x.reps,sets_planned:x.sets,sets_done:Math.floor(n/x.sides)};
         if(x.variant)o.variant=x.variant;
         if(x.sides>1)o.sides=x.sides;
+        applyCaptured(o,bi,ei,x.sides);
         return o;
       })};
     });
@@ -510,6 +564,151 @@ function recordSession(){
   if(LOGCFG.token)pushLog();
   if(e.mode==="strength"&&S.f_notes)openNotes(e.id);
 }
+
+/* ---------- serie por serie (fuerza) ----------
+   Lo anotado durante la sesión vive en seq[j].cap = {reps, kg} del intervalo
+   de trabajo j. Al registrar se vuelca al esquema de siempre:
+   - reps[i]      = reps de la serie i (null si esa serie no se anotó).
+   - weight_kg    = peso de la última serie anotada con peso.
+   - weights_kg[] = peso de cada serie, SOLO si cambió entre series.
+   - Búlgara (sides:2): cada lado es un intervalo y se anota por separado.
+     reps[i] = el lado más bajo (el que manda en la progresión doble) y
+     reps_by_side[i] = [izquierda, derecha]. */
+function applyCaptured(o,bi,ei,sides){
+  var sets=[];   // sets[r-1] = [cap lado 1, cap lado 2]
+  seq.forEach(function(s){
+    if(s.k!=="work"||s.b!==bi||s.e!==ei||!s.cap)return;
+    var r=s.set-1,sd=s.side==="derecha"?1:0;
+    (sets[r]=sets[r]||[])[sd]=s.cap;
+  });
+  if(!sets.length)return;
+  var reps=[],ws=[],bySide=[],lastW=null;
+  for(var r=0;r<sets.length;r++){
+    var c=sets[r]||[],vals=[],w=null;
+    for(var sd=0;sd<sides;sd++){
+      if(c[sd]&&c[sd].reps!=null)vals.push(c[sd].reps);
+      if(c[sd]&&c[sd].kg!=null)w=c[sd].kg;
+    }
+    reps.push(vals.length?Math.min.apply(null,vals):null);
+    if(sides>1)bySide.push([c[0]?c[0].reps:null,c[1]?c[1].reps:null]);
+    ws.push(w);if(w!=null)lastW=w;
+  }
+  if(reps.some(function(v){return v!=null}))o.reps=reps;
+  if(lastW!=null)o.weight_kg=lastW;
+  var distinct=ws.filter(function(v,i,a){return v!=null&&a.indexOf(v)===i});
+  if(distinct.length>1)o.weights_kg=ws;
+  if(sides>1)o.reps_by_side=bySide;
+}
+
+// Último peso (y reps) por ejercicio y día de entrenamiento, para proponerlo
+// la semana siguiente. La variante cuenta: goblet y con barra no pesan igual.
+var MEMKEY="ringtimer_weights";
+function readMem(){try{return JSON.parse(localStorage.getItem(MEMKEY)||"{}")}catch(e){return{}}}
+function memKey(day,name,variant){return day+"|"+name+"|"+(variant||"")}
+function remember(day,name,variant,kg,reps){
+  var m=readMem(),k=memKey(day,name,variant),o=m[k]||{};
+  if(kg!=null)o.kg=kg;
+  if(reps!=null)o.reps=reps;
+  o.date=localDate(new Date());
+  m[k]=o;
+  try{localStorage.setItem(MEMKEY,JSON.stringify(m))}catch(e){}
+}
+
+var capJ=null;   // intervalo que se está anotando (null = hoja cerrada)
+function lastWorkIdx(){
+  if(S.mode!=="strength"||!seq.length)return null;
+  var from=finished?seq.length-1:idx;
+  for(var j=from;j>=0;j--)if(seq[j].k==="work")return j;
+  return null;
+}
+function capPrefill(j){
+  var s=seq[j],x=plan.blocks[s.b].ex[s.e];
+  if(s.cap)return{reps:s.cap.reps,kg:s.cap.kg};
+  var reps=null,kg=null,haveKg=false;
+  // lo último anotado hoy en este ejercicio (mismo lado primero)
+  for(var pass=0;pass<2&&reps==null;pass++)
+    for(var i=j-1;i>=0;i--){
+      var p=seq[i];
+      if(p.k!=="work"||p.b!==s.b||p.e!==s.e||!p.cap)continue;
+      if(pass===0&&p.side!==s.side)continue;
+      reps=p.cap.reps;break;
+    }
+  for(i=j-1;i>=0;i--){
+    p=seq[i];
+    if(p.k==="work"&&p.b===s.b&&p.e===s.e&&p.cap){kg=p.cap.kg;haveKg=true;break}
+  }
+  var mem=readMem()[memKey(plan.day,x.name,x.variant)]||{};
+  if(!haveKg&&mem.kg!=null)kg=mem.kg;
+  if(reps==null&&mem.reps!=null)reps=mem.reps;
+  if(reps==null){var m=/\d+/.exec(x.reps);reps=m?+m[0]:null}
+  return{reps:reps,kg:kg};
+}
+function openSheet(j){
+  if(j==null)return;
+  capJ=j;
+  var s=seq[j],x=plan.blocks[s.b].ex[s.e],v=capPrefill(j);
+  $("shname").textContent=strLabel(s)+(x.variant?" ("+x.variant+")":"");
+  $("shset").textContent="Bloque "+plan.blocks[s.b].id+" · serie "+s.set+" / "+s.sets+" · "+x.reps;
+  $("shreps").value=v.reps==null?"":v.reps;
+  $("shkg").value=v.kg==null?"":v.kg;
+  $("shkgl").textContent=v.kg==null&&STRENGTH[plan.day].kind==="cal"?"kg · vacío = sin peso":"kg";
+  var prev=null;for(var i=j-1;i>=0;i--)if(seq[i].k==="work"){prev=i;break}
+  $("shprev").style.visibility=prev==null?"hidden":"visible";
+  $("shprev").setAttribute("data-j",prev==null?"":prev);
+  $("sheet").className="sheet";
+  paintSheetClock();
+}
+function commitSheet(){
+  if(capJ==null)return;
+  var s=seq[capJ],x=plan.blocks[s.b].ex[s.e];
+  var r=num($("shreps").value),w=num($("shkg").value);
+  if(r!=null)r=Math.max(0,Math.round(r));
+  if(w!=null&&w<0)w=null;
+  s.cap={reps:r,kg:w};
+  remember(plan.day,x.name,x.variant,w,r);
+  closeSheet();
+}
+function closeSheet(){capJ=null;$("sheet").className="sheet hide";paintLogBtn()}
+function paintSheetClock(){
+  if(capJ==null)return;
+  var s=seq[idx];
+  var what=finished?"terminado":s.k==="work"?(idx===capJ?"descanso":strLabel(s).toLowerCase())
+    :s.k==="wait"?"cambio":"prepárate";
+  $("shclock").innerHTML="";
+  var b=document.createElement("b");b.textContent=finished||s.k==="wait"?"–":fmt(left);
+  $("shclock").appendChild(b);$("shclock").appendChild(document.createTextNode(what+(running?"":" · pausa")));
+}
+function paintLogBtn(){
+  var btn=$("logset"),j=S.mode==="strength"&&sessionStart&&!finished?lastWorkIdx():null;
+  if(j==null){btn.className="act logset hide";return}
+  var s=seq[j];
+  if(s.cap){
+    btn.className="act logset ok";
+    btn.textContent="✓ "+strLabel(s)+" · "+(s.cap.reps==null?"–":s.cap.reps)+" reps"+
+      (s.cap.kg!=null?" · "+s.cap.kg+" kg":"")+" — editar";
+  }else{
+    btn.className="act logset";
+    btn.textContent="Anotar serie "+s.set+" · "+strLabel(s);
+  }
+}
+$("logset").onclick=function(ev){ev.stopPropagation();openSheet(lastWorkIdx())};
+$("shok").onclick=function(ev){ev.stopPropagation();commitSheet()};
+$("shx").onclick=function(ev){ev.stopPropagation();closeSheet()};
+$("shprev").onclick=function(ev){
+  ev.stopPropagation();var j=$("shprev").getAttribute("data-j");
+  if(j!=="")openSheet(+j);
+};
+$("sheet").onclick=function(ev){ev.stopPropagation()};
+Array.prototype.forEach.call(document.querySelectorAll("#sheet .big button"),function(b){
+  b.onclick=function(ev){
+    ev.stopPropagation();
+    var inp=b.getAttribute("data-f")==="r"?$("shreps"):$("shkg");
+    var d=+b.getAttribute("data-d"),v=num(inp.value);
+    if(v==null){if(d<0)return;v=0}
+    v=Math.max(0,Math.round((v+d)*10)/10);
+    inp.value=v===0&&b.getAttribute("data-f")==="w"?"":v;
+  };
+});
 
 /* ---------- pesos y reps al final (fuerza) ----------
    La sesión ya quedó guardada (y quizá subida) sin esto; al guardar se
@@ -537,9 +736,14 @@ function openNotes(id){
         f.appendChild(i);
       };
       mk("w","kg","decimal",x.weight_kg);
-      mk("r","reps: 10 10 9","text",x.reps?x.reps.join(" "):"");
+      mk("r","reps: 10 10 9","text",repsText(x.reps));
       mk("i","RIR","numeric",x.rir);
       card.appendChild(h);card.appendChild(sub);card.appendChild(f);
+      var extra=[];
+      if(x.weights_kg)extra.push("pesos por serie: "+x.weights_kg.map(function(v){return v==null?"–":v}).join(" · ")+" kg");
+      if(x.reps_by_side)extra.push("izq/der: "+x.reps_by_side.map(function(p){
+        return(p[0]==null?"–":p[0])+"/"+(p[1]==null?"–":p[1])}).join(" · ")+" (reps = el lado más bajo)");
+      if(extra.length){var ex=document.createElement("div");ex.className="ex";ex.textContent=extra.join(" · ");card.appendChild(ex)}
       box.appendChild(card);
     });
   });
@@ -552,6 +756,13 @@ function closeNotes(){
   $("gear").disabled=running;
 }
 function num(v){v=String(v).replace(",",".").trim();if(v==="")return null;var n=+v;return isFinite(n)?n:null}
+function repsText(r){return r?r.map(function(v){return v==null?"–":v}).join(" "):""}
+// "10 – 9" → [10,null,9]; cualquier cosa que no sea número es una serie sin anotar
+function parseReps(t){
+  var r=String(t).trim().split(/[\s,;\/]+/).filter(Boolean).map(function(v){return /^\d+$/.test(v)?+v:null});
+  while(r.length&&r[r.length-1]==null)r.pop();
+  return r.some(function(v){return v!=null})?r:null;
+}
 $("nsave").onclick=function(ev){
   ev.stopPropagation();
   var a=readLog(),e=a.filter(function(x){return x.id===notesId})[0];
@@ -559,10 +770,17 @@ $("nsave").onclick=function(ev){
     var ins=$("notes-list").querySelectorAll("input");
     Array.prototype.forEach.call(ins,function(i){
       var x=e.blocks[+i.getAttribute("data-b")].exercises[+i.getAttribute("data-e")];
-      if(i.classList.contains("w")){var w=num(i.value);if(w===null)delete x.weight_kg;else x.weight_kg=w}
+      if(i.classList.contains("w")){
+        var w=num(i.value);
+        // si el peso se corrige a mano, el desglose por serie ya no vale
+        if(w!==(x.weight_kg==null?null:x.weight_kg))delete x.weights_kg;
+        if(w===null)delete x.weight_kg;else x.weight_kg=w;
+        if(w!==null)remember(e.day,x.name,x.variant,w,null);
+      }
       else if(i.classList.contains("r")){
-        var r=i.value.split(/[^0-9]+/).filter(Boolean).map(Number);
-        if(r.length)x.reps=r;else delete x.reps;
+        if(i.value.trim()!==repsText(x.reps))delete x.reps_by_side;
+        var r=parseReps(i.value);
+        if(r)x.reps=r;else delete x.reps;
       }else{var q=num(i.value);if(q===null)delete x.rir;else x.rir=q}
     });
     e.synced=false;writeLog(a);syncStatus();
@@ -680,7 +898,8 @@ function logText(){
       (e.blocks||[]).forEach(function(b){b.exercises.forEach(function(x){
         var t="  "+b.id+" "+x.name+(x.variant?" ("+x.variant+")":"")+": "+x.sets_done+"/"+x.sets_planned;
         if(x.weight_kg!=null)t+=" · "+x.weight_kg+"kg";
-        if(x.reps)t+=" · "+x.reps.join(", ");
+        if(x.weights_kg)t+=" ("+x.weights_kg.map(function(v){return v==null?"–":v}).join("/")+")";
+        if(x.reps)t+=" · "+repsText(x.reps).split(" ").join(", ");
         if(x.rir!=null)t+=" · RIR "+x.rir;
         lines.push(t);
       })});
@@ -806,6 +1025,7 @@ function paintStrength(){
 }
 
 function paint(){
+  paintLogBtn();paintSheetClock();
   if(S.mode==="strength")return paintStrength();
   $("reps").textContent="";
   var s=seq[idx],nx=seq[idx+1],st=$("stage");
@@ -901,6 +1121,7 @@ function step(){
     if(idx>=seq.length-1){
       finished=true;left=0;stop();
       if(S.mode==="box")bell(3);else tone(520,.9,1);
+      if(capJ!=null)commitSheet();   // lo que estaba en la hoja abierta no se pierde
       recordSession();
       paint();return;
     }
@@ -918,6 +1139,7 @@ function step(){
   }
   $("clock").textContent=fmt(left);
   $("bar").style.width=(100*(1-left/s.d))+"%";
+  paintSheetClock();
 }
 
 function start(){
@@ -933,14 +1155,17 @@ function start(){
   requestLock();
   var s=seq[idx];
   if(fresh){if(s.k==="work"&&s.bell)bell(1);else tone(1050,.4,1)}
+  paintLogBtn();
 }
 function stop(){
   running=false;clearInterval(tick);$("gear").disabled=false;
   $("go").textContent=finished?"Empezar":"Seguir";
+  paintSheetClock();
 }
 function reset(){
   if(sessionStart&&!finished)recordSession();   // abandonar a media sesión también cuenta
   sessionStart=null;
+  if(capJ!=null)closeSheet();
   stop();build();$("go").textContent="Empezar";
 }
 

@@ -21,8 +21,30 @@ intervalo**, la campana suena al inicio de cada uno y en lo que queda se descans
   y qué sigue. La búlgara son dos intervalos: izquierda y derecha.
 - Entre bloques aparece "Cambia de estación" y el reloj espera un toque.
 - Intervalos (pierna 1:30, máquinas 1:15, calistenia 1:20) y preparación, en ajustes.
-- Al terminar (o abandonar con series hechas) se puede anotar peso, reps de cada
-  serie y RIR por ejercicio. Se guarda en la misma entrada y se vuelve a subir.
+- **Anotar serie por serie, sin pausar.** Debajo de Pausa/Reiniciar aparece el botón
+  "Anotar serie N · ejercicio" en cuanto arranca el primer intervalo de trabajo. Abre
+  una hoja con dos números grandes (reps y kg) con botones −/+ de 78 px, y se cierra
+  con un toque en **Listo**. El reloj sigue corriendo arriba y en la propia hoja, y la
+  campana suena igual. Tocar el escenario sigue siendo pausa: el botón es aparte.
+  - Apunta al intervalo de trabajo en curso; durante la preparación o el cambio de
+    estación, al último que pasó. "‹ la serie anterior" corrige o completa la de antes.
+  - Ya anotada, el botón se pone verde con lo capturado ("✓ Sentadilla · 10 reps ·
+    20 kg — editar") y un toque la reabre.
+  - **Prellenado:** reps y peso de la serie anterior de ese ejercicio hoy; si es la
+    primera, lo último que se usó en ese ejercicio **ese mismo día de entrenamiento**
+    (Pierna A ≠ Pierna B, goblet ≠ con barra), guardado en `localStorage`
+    (`ringtimer_weights`); si nunca se anotó, el mínimo del rango de reps. Casi
+    siempre basta con ajustar las reps y tocar Listo.
+  - En calistenia el peso vacío = sin peso. "−" hasta 0 también lo vacía.
+  - Una serie anotada cuenta como hecha aunque su intervalo no haya llegado a la mitad.
+  - Si la sesión termina con la hoja abierta, lo que tenía se guarda.
+- **Búlgara (dos intervalos por serie):** cada lado se anota en su intervalo
+  (izquierda, derecha). En el registro, `reps[i]` es **el lado más bajo** de la serie
+  —el que decide si ya toca subir peso en la progresión doble— y el detalle va en
+  `reps_by_side`.
+- Al terminar (o abandonar con series hechas) se abre "Anota la sesión" **ya llena** con
+  lo capturado: solo falta el RIR, o corregir algo. Se guarda en la misma entrada y se
+  vuelve a subir. Si se apaga "Anotar pesos al final", lo capturado se guarda igual.
 
 Los presets viven en `STRENGTH` dentro de `index.html`.
 
@@ -46,7 +68,27 @@ Mismos campos base que los otros modos (`id`, `date`, `start`, `end`,
 ```
 
 `weight_kg`, `reps` y `rir` solo aparecen si se anotaron. `sides: 2` marca la búlgara.
-Una serie cuenta como hecha cuando su intervalo pasó de la mitad.
+Una serie cuenta como hecha cuando su intervalo pasó de la mitad (o cuando se anotó).
+
+Campos opcionales que salen de la captura serie por serie (todo sigue siendo
+compatible: quien solo lee `weight_kg`, `reps` y `rir` no pierde nada):
+
+| Campo | Cuándo aparece | Qué es |
+|---|---|---|
+| `reps[i]` = `null` | se anotó una serie posterior pero no esta | serie hecha sin reps anotadas; las faltantes al final simplemente no están |
+| `weight_kg` | — | peso de la **última** serie anotada con peso (la del RIR) |
+| `weights_kg[]` | solo si el peso **cambió** entre series | peso de cada serie, alineado con `reps` (`null` = sin peso) |
+| `reps_by_side[]` | búlgara (`sides: 2`) | `[izquierda, derecha]` por serie; `reps[i]` es el menor de los dos |
+
+```json
+{"name": "Sentadilla", "variant": "goblet", "sets_planned": 3, "sets_done": 3,
+ "weight_kg": 22.5, "weights_kg": [20, 20, 22.5], "reps": [10, 9, 8], "rir": 2},
+{"name": "Búlgara", "sides": 2, "sets_planned": 2, "sets_done": 2,
+ "weight_kg": 12, "reps": [10, 8], "reps_by_side": [[10, 11], [9, 8]], "rir": 1}
+```
+
+Si en el formulario final se corrige a mano el peso, `weights_kg` se borra; si se
+corrigen las reps, `reps_by_side` se borra (ya no cuadrarían).
 
 ## Publicar en GitHub Pages
 
