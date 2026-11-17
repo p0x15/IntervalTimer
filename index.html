@@ -169,9 +169,19 @@ button.logset.ok{border-color:var(--green)}
   font-family:"DIN Alternate",ui-monospace,"SF Mono",Menlo,monospace;font-size:52px;font-weight:500;line-height:1.1;padding:0}
 .big input::placeholder{color:var(--muted)}
 .big small{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
-.sh .act.go{width:100%;padding:22px 8px;font-size:19px}
+.big .unit{flex:none;width:auto;height:auto;margin-top:4px;padding:5px 16px;border-radius:999px;
+  border:1px solid var(--line);background:var(--panel-2);font-size:14px;letter-spacing:.08em;color:var(--text)}
+.effq{margin:2px 2px 8px;font-size:13px;color:var(--muted)}
+.effq span{opacity:.7}
+.eff{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.eff button{border:0;border-radius:16px;padding:24px 4px;font:inherit;font-size:19px;font-weight:600;cursor:pointer;color:var(--deep)}
+.eff button[data-e="facil"]{background:var(--green)}
+.eff button[data-e="bien"]{background:var(--blue)}
+.eff button[data-e="duro"]{background:#E0904A}
+.eff button[aria-pressed="true"]{box-shadow:0 0 0 3px var(--text)}
+.eff button:active{transform:scale(.97)}
 .shrow{display:flex;gap:8px}
-.shrow .skip{flex:1}
+.shrow .skip{flex:1;font-size:12px;padding:12px 2px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -333,7 +343,7 @@ button.logset.ok{border-color:var(--green)}
 
 <div id="view-notes" class="hide">
   <p class="sechead">Anota la sesión</p>
-  <p class="hint" style="margin:0 4px 12px">Lo que anotaste en cada serie ya está aquí: revísalo y pon el RIR de la última. Peso en kg, reps de cada serie separadas por espacio (– = serie sin anotar). Lo que dejes vacío no se guarda.</p>
+  <p class="hint" style="margin:0 4px 12px">Lo que anotaste en cada serie ya está aquí: revísalo y, si quieres, pon el RIR de la última. Peso en la unidad que anotaste (lb o kg), reps de cada serie separadas por espacio (– = serie sin anotar). Lo que dejes vacío no se guarda.</p>
   <div id="notes-list"></div>
   <div class="controls">
     <button class="act go" id="nsave">Guardar</button>
@@ -356,12 +366,18 @@ button.logset.ok{border-color:var(--green)}
     </div>
     <div class="big">
       <button type="button" data-f="w" data-d="-2.5" aria-label="2.5 kg menos">−</button>
-      <label><input id="shkg" inputmode="decimal" autocomplete="off" placeholder="–"><small id="shkgl">kg</small></label>
+      <label><input id="shkg" inputmode="decimal" autocomplete="off" placeholder="sin peso"><button type="button" class="unit" id="shunit">lb</button></label>
       <button type="button" data-f="w" data-d="2.5" aria-label="2.5 kg más">+</button>
     </div>
-    <button class="act go" id="shok">Listo</button>
+    <p class="effq">¿Cómo se sintió? <span>toca y se guarda</span></p>
+    <div class="eff">
+      <button type="button" data-e="facil">Fácil</button>
+      <button type="button" data-e="bien">Bien</button>
+      <button type="button" data-e="duro">Duro</button>
+    </div>
     <div class="shrow">
       <button class="skip" id="shprev">‹ la serie anterior</button>
+      <button class="skip" id="shok">Guardar sin calificar</button>
       <button class="skip" id="shx">Cancelar</button>
     </div>
   </div>
@@ -566,14 +582,21 @@ function recordSession(){
 }
 
 /* ---------- serie por serie (fuerza) ----------
-   Lo anotado durante la sesión vive en seq[j].cap = {reps, kg} del intervalo
-   de trabajo j. Al registrar se vuelca al esquema de siempre:
+   Lo anotado durante la sesión vive en seq[j].cap = {reps, w, unit, effort}
+   del intervalo de trabajo j. Pedro piensa en lb (mancuernas y máquinas del
+   club), así que el peso se captura en la unidad que él elija y se guarda tal
+   cual + convertido a kg. Al registrar se vuelca al esquema de siempre:
    - reps[i]      = reps de la serie i (null si esa serie no se anotó).
-   - weight_kg    = peso de la última serie anotada con peso.
-   - weights_kg[] = peso de cada serie, SOLO si cambió entre series.
+   - weight_kg    = peso de la última serie anotada con peso, en kg.
+   - weight_unit  = "lb" si se anotó en libras; entonces también weight_lb.
+   - weights_kg[] (y weights_lb[]) = peso por serie, SOLO si cambió entre series.
+   - effort[i]    = "facil" | "bien" | "duro" (cómo se sintió la serie).
    - Búlgara (sides:2): cada lado es un intervalo y se anota por separado.
-     reps[i] = el lado más bajo (el que manda en la progresión doble) y
-     reps_by_side[i] = [izquierda, derecha]. */
+     reps[i] = el lado más bajo (el que manda en la progresión doble),
+     reps_by_side[i] = [izquierda, derecha], effort[i] = el lado más duro. */
+var LB=0.45359237;
+function toKg(w,unit){return w==null?null:unit==="lb"?Math.round(w*LB*10)/10:w}
+var EFF=["facil","bien","duro"],EFFTXT={facil:"fácil",bien:"bien",duro:"duro"};
 function applyCaptured(o,bi,ei,sides){
   var sets=[];   // sets[r-1] = [cap lado 1, cap lado 2]
   seq.forEach(function(s){
@@ -582,39 +605,57 @@ function applyCaptured(o,bi,ei,sides){
     (sets[r]=sets[r]||[])[sd]=s.cap;
   });
   if(!sets.length)return;
-  var reps=[],ws=[],bySide=[],lastW=null;
+  var reps=[],ws=[],units=[],eff=[],bySide=[],last=null;
   for(var r=0;r<sets.length;r++){
-    var c=sets[r]||[],vals=[],w=null;
+    var c=sets[r]||[],vals=[],w=null,u=null,e=-1;
     for(var sd=0;sd<sides;sd++){
-      if(c[sd]&&c[sd].reps!=null)vals.push(c[sd].reps);
-      if(c[sd]&&c[sd].kg!=null)w=c[sd].kg;
+      var k=c[sd];if(!k)continue;
+      if(k.reps!=null)vals.push(k.reps);
+      if(k.w!=null){w=k.w;u=k.unit}
+      e=Math.max(e,EFF.indexOf(k.effort));
     }
     reps.push(vals.length?Math.min.apply(null,vals):null);
     if(sides>1)bySide.push([c[0]?c[0].reps:null,c[1]?c[1].reps:null]);
-    ws.push(w);if(w!=null)lastW=w;
+    ws.push(w);units.push(u);eff.push(e<0?null:EFF[e]);
+    if(w!=null)last={w:w,unit:u};
   }
   if(reps.some(function(v){return v!=null}))o.reps=reps;
-  if(lastW!=null)o.weight_kg=lastW;
-  var distinct=ws.filter(function(v,i,a){return v!=null&&a.indexOf(v)===i});
-  if(distinct.length>1)o.weights_kg=ws;
+  if(last){
+    o.weight_kg=toKg(last.w,last.unit);
+    if(last.unit==="lb"){o.weight_unit="lb";o.weight_lb=last.w}
+  }
+  var kgs=ws.map(function(v,i){return toKg(v,units[i])});
+  var distinct=kgs.filter(function(v,i,a){return v!=null&&a.indexOf(v)===i});
+  if(distinct.length>1){
+    o.weights_kg=kgs;
+    if(units.every(function(u,i){return ws[i]==null||u==="lb"}))o.weights_lb=ws;
+  }
+  if(eff.some(function(v){return v!=null}))o.effort=eff;
   if(sides>1)o.reps_by_side=bySide;
 }
 
-// Último peso (y reps) por ejercicio y día de entrenamiento, para proponerlo
-// la semana siguiente. La variante cuenta: goblet y con barra no pesan igual.
+// Último peso (en su unidad) y reps por ejercicio y día de entrenamiento, para
+// proponerlos la semana siguiente. La variante cuenta: goblet ≠ con barra.
 var MEMKEY="ringtimer_weights";
 function readMem(){try{return JSON.parse(localStorage.getItem(MEMKEY)||"{}")}catch(e){return{}}}
 function memKey(day,name,variant){return day+"|"+name+"|"+(variant||"")}
-function remember(day,name,variant,kg,reps){
+function memGet(day,name,variant){
+  var o=readMem()[memKey(day,name,variant)]||{};
+  if(o.w==null&&o.kg!=null){o.w=o.kg;o.unit="kg"}   // formato viejo
+  return o;
+}
+function remember(day,name,variant,w,unit,reps){
   var m=readMem(),k=memKey(day,name,variant),o=m[k]||{};
-  if(kg!=null)o.kg=kg;
+  delete o.kg;
+  if(w!=null){o.w=w;o.unit=unit}
+  else if(unit)o.unit=unit;
   if(reps!=null)o.reps=reps;
   o.date=localDate(new Date());
   m[k]=o;
   try{localStorage.setItem(MEMKEY,JSON.stringify(m))}catch(e){}
 }
 
-var capJ=null;   // intervalo que se está anotando (null = hoja cerrada)
+var capJ=null,capUnit="lb",capEff=null;   // capJ null = hoja cerrada
 function lastWorkIdx(){
   if(S.mode!=="strength"||!seq.length)return null;
   var from=finished?seq.length-1:idx;
@@ -623,49 +664,62 @@ function lastWorkIdx(){
 }
 function capPrefill(j){
   var s=seq[j],x=plan.blocks[s.b].ex[s.e];
-  if(s.cap)return{reps:s.cap.reps,kg:s.cap.kg};
-  var reps=null,kg=null,haveKg=false;
+  if(s.cap)return{reps:s.cap.reps,w:s.cap.w,unit:s.cap.unit,effort:s.cap.effort};
+  var reps=null,w=null,unit=null,haveW=false,i,p;
   // lo último anotado hoy en este ejercicio (mismo lado primero)
   for(var pass=0;pass<2&&reps==null;pass++)
-    for(var i=j-1;i>=0;i--){
-      var p=seq[i];
+    for(i=j-1;i>=0;i--){
+      p=seq[i];
       if(p.k!=="work"||p.b!==s.b||p.e!==s.e||!p.cap)continue;
       if(pass===0&&p.side!==s.side)continue;
       reps=p.cap.reps;break;
     }
   for(i=j-1;i>=0;i--){
     p=seq[i];
-    if(p.k==="work"&&p.b===s.b&&p.e===s.e&&p.cap){kg=p.cap.kg;haveKg=true;break}
+    if(p.k==="work"&&p.b===s.b&&p.e===s.e&&p.cap){w=p.cap.w;unit=p.cap.unit;haveW=true;break}
   }
-  var mem=readMem()[memKey(plan.day,x.name,x.variant)]||{};
-  if(!haveKg&&mem.kg!=null)kg=mem.kg;
+  var mem=memGet(plan.day,x.name,x.variant);
+  if(!haveW&&mem.w!=null){w=mem.w;unit=mem.unit}
+  if(!unit)unit=mem.unit||"lb";
   if(reps==null&&mem.reps!=null)reps=mem.reps;
   if(reps==null){var m=/\d+/.exec(x.reps);reps=m?+m[0]:null}
-  return{reps:reps,kg:kg};
+  return{reps:reps,w:w,unit:unit,effort:null};
+}
+function paintUnit(){
+  $("shunit").textContent=capUnit;
+  $("shunit").setAttribute("aria-label","Unidad: "+(capUnit==="lb"?"libras":"kilos")+". Toca para cambiar");
+  var b=document.querySelectorAll('#sheet .big button[data-f="w"]');
+  b[0].setAttribute("data-d",capUnit==="lb"?-5:-2.5);
+  b[1].setAttribute("data-d",capUnit==="lb"?5:2.5);
+}
+function paintEff(){
+  Array.prototype.forEach.call(document.querySelectorAll("#sheet .eff button"),function(b){
+    b.setAttribute("aria-pressed",b.getAttribute("data-e")===capEff?"true":"false");
+  });
 }
 function openSheet(j){
   if(j==null)return;
   capJ=j;
   var s=seq[j],x=plan.blocks[s.b].ex[s.e],v=capPrefill(j);
   $("shname").textContent=strLabel(s)+(x.variant?" ("+x.variant+")":"");
-  $("shset").textContent="Bloque "+plan.blocks[s.b].id+" · serie "+s.set+" / "+s.sets+" · "+x.reps;
+  $("shset").textContent="serie "+s.set+" / "+s.sets+" · "+x.reps;
   $("shreps").value=v.reps==null?"":v.reps;
-  $("shkg").value=v.kg==null?"":v.kg;
-  $("shkgl").textContent=v.kg==null&&STRENGTH[plan.day].kind==="cal"?"kg · vacío = sin peso":"kg";
+  $("shkg").value=v.w==null?"":v.w;
+  capUnit=v.unit;capEff=v.effort||null;paintUnit();paintEff();
   var prev=null;for(var i=j-1;i>=0;i--)if(seq[i].k==="work"){prev=i;break}
   $("shprev").style.visibility=prev==null?"hidden":"visible";
   $("shprev").setAttribute("data-j",prev==null?"":prev);
   $("sheet").className="sheet";
   paintSheetClock();
 }
-function commitSheet(){
+function commitSheet(effort){
   if(capJ==null)return;
   var s=seq[capJ],x=plan.blocks[s.b].ex[s.e];
   var r=num($("shreps").value),w=num($("shkg").value);
   if(r!=null)r=Math.max(0,Math.round(r));
-  if(w!=null&&w<0)w=null;
-  s.cap={reps:r,kg:w};
-  remember(plan.day,x.name,x.variant,w,r);
+  if(w!=null&&w<=0)w=null;
+  s.cap={reps:r,w:w,unit:capUnit,effort:effort||capEff||null};
+  remember(plan.day,x.name,x.variant,w,capUnit,r);
   closeSheet();
 }
 function closeSheet(){capJ=null;$("sheet").className="sheet hide";paintLogBtn()}
@@ -684,22 +738,27 @@ function paintLogBtn(){
   var s=seq[j];
   if(s.cap){
     btn.className="act logset ok";
-    btn.textContent="✓ "+strLabel(s)+" · "+(s.cap.reps==null?"–":s.cap.reps)+" reps"+
-      (s.cap.kg!=null?" · "+s.cap.kg+" kg":"")+" — editar";
+    btn.textContent="✓ "+strLabel(s)+" · "+(s.cap.reps==null?"–":s.cap.reps)+
+      (s.cap.w!=null?" × "+s.cap.w+" "+s.cap.unit:"")+(s.cap.effort?" · "+EFFTXT[s.cap.effort]:"")+" — editar";
   }else{
     btn.className="act logset";
     btn.textContent="Anotar serie "+s.set+" · "+strLabel(s);
   }
 }
 $("logset").onclick=function(ev){ev.stopPropagation();openSheet(lastWorkIdx())};
+// cada botón de esfuerzo guarda y cierra: abrir + calificar = 2 toques
+Array.prototype.forEach.call(document.querySelectorAll("#sheet .eff button"),function(b){
+  b.onclick=function(ev){ev.stopPropagation();commitSheet(b.getAttribute("data-e"))};
+});
 $("shok").onclick=function(ev){ev.stopPropagation();commitSheet()};
+$("shunit").onclick=function(ev){ev.stopPropagation();capUnit=capUnit==="lb"?"kg":"lb";paintUnit()};
 $("shx").onclick=function(ev){ev.stopPropagation();closeSheet()};
 $("shprev").onclick=function(ev){
   ev.stopPropagation();var j=$("shprev").getAttribute("data-j");
   if(j!=="")openSheet(+j);
 };
 $("sheet").onclick=function(ev){ev.stopPropagation()};
-Array.prototype.forEach.call(document.querySelectorAll("#sheet .big button"),function(b){
+Array.prototype.forEach.call(document.querySelectorAll("#sheet .big button[data-f]"),function(b){
   b.onclick=function(ev){
     ev.stopPropagation();
     var inp=b.getAttribute("data-f")==="r"?$("shreps"):$("shkg");
@@ -735,12 +794,16 @@ function openNotes(id){
         if(val!=null&&val!=="")i.value=val;
         f.appendChild(i);
       };
-      mk("w","kg","decimal",x.weight_kg);
+      var lb=x.weight_unit==="lb";
+      mk("w",lb?"lb":"kg","decimal",lb?x.weight_lb:x.weight_kg);
       mk("r","reps: 10 10 9","text",repsText(x.reps));
       mk("i","RIR","numeric",x.rir);
       card.appendChild(h);card.appendChild(sub);card.appendChild(f);
       var extra=[];
-      if(x.weights_kg)extra.push("pesos por serie: "+x.weights_kg.map(function(v){return v==null?"–":v}).join(" · ")+" kg");
+      if(lb)extra.push("peso en lb ("+x.weight_kg+" kg)");
+      var wl=x.weights_lb||x.weights_kg;
+      if(wl)extra.push("pesos por serie: "+wl.map(function(v){return v==null?"–":v}).join(" · ")+(x.weights_lb?" lb":" kg"));
+      if(x.effort)extra.push("se sintió: "+x.effort.map(function(v){return v?EFFTXT[v]:"–"}).join(" · "));
       if(x.reps_by_side)extra.push("izq/der: "+x.reps_by_side.map(function(p){
         return(p[0]==null?"–":p[0])+"/"+(p[1]==null?"–":p[1])}).join(" · ")+" (reps = el lado más bajo)");
       if(extra.length){var ex=document.createElement("div");ex.className="ex";ex.textContent=extra.join(" · ");card.appendChild(ex)}
@@ -771,11 +834,13 @@ $("nsave").onclick=function(ev){
     Array.prototype.forEach.call(ins,function(i){
       var x=e.blocks[+i.getAttribute("data-b")].exercises[+i.getAttribute("data-e")];
       if(i.classList.contains("w")){
-        var w=num(i.value);
+        var w=num(i.value),unit=x.weight_unit==="lb"?"lb":"kg";
+        var orig=unit==="lb"?x.weight_lb:x.weight_kg;
         // si el peso se corrige a mano, el desglose por serie ya no vale
-        if(w!==(x.weight_kg==null?null:x.weight_kg))delete x.weights_kg;
-        if(w===null)delete x.weight_kg;else x.weight_kg=w;
-        if(w!==null)remember(e.day,x.name,x.variant,w,null);
+        if(w!==(orig==null?null:orig)){delete x.weights_kg;delete x.weights_lb}
+        if(w===null){delete x.weight_kg;delete x.weight_lb;delete x.weight_unit}
+        else{x.weight_kg=toKg(w,unit);if(unit==="lb")x.weight_lb=w}
+        if(w!==null)remember(e.day,x.name,x.variant,w,unit,null);
       }
       else if(i.classList.contains("r")){
         if(i.value.trim()!==repsText(x.reps))delete x.reps_by_side;
@@ -897,9 +962,11 @@ function logText(){
       var lines=[];
       (e.blocks||[]).forEach(function(b){b.exercises.forEach(function(x){
         var t="  "+b.id+" "+x.name+(x.variant?" ("+x.variant+")":"")+": "+x.sets_done+"/"+x.sets_planned;
-        if(x.weight_kg!=null)t+=" · "+x.weight_kg+"kg";
-        if(x.weights_kg)t+=" ("+x.weights_kg.map(function(v){return v==null?"–":v}).join("/")+")";
+        if(x.weight_kg!=null)t+=" · "+(x.weight_unit==="lb"?x.weight_lb+"lb":x.weight_kg+"kg");
+        var wl=x.weights_lb||x.weights_kg;
+        if(wl)t+=" ("+wl.map(function(v){return v==null?"–":v}).join("/")+")";
         if(x.reps)t+=" · "+repsText(x.reps).split(" ").join(", ");
+        if(x.effort)t+=" · "+x.effort.map(function(v){return v?EFFTXT[v]:"–"}).join("/");
         if(x.rir!=null)t+=" · RIR "+x.rir;
         lines.push(t);
       })});
