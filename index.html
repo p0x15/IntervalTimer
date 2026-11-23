@@ -37,7 +37,7 @@ body{
   padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   overscroll-behavior:none;
 }
-button{font:inherit;color:inherit}
+button{font:inherit;color:inherit;touch-action:manipulation}
 button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
 .hide{display:none!important}
 .lbl{font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--t2)}
@@ -205,7 +205,11 @@ button.logset::after{content:"";flex:none;width:10px;height:10px;border-top:2px 
 button.logset.ok::after{content:"Editar";width:auto;height:auto;border:0;transform:none;margin:0;font-size:14px;font-weight:500;color:var(--acc)}
 button.logset:active{transform:scale(.99)}
 #session[data-k="wait"] .logset{display:none}
-.controls{display:none;grid-template-columns:1fr 76px;gap:10px;margin-top:10px}
+.controls{display:none;grid-template-columns:1fr 76px 76px;gap:10px;margin-top:10px}
+#skp{height:76px;padding:0;border-radius:20px;background:rgba(0,0,0,.14);color:var(--ink);font-size:14px;font-weight:700;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+#skp span{font-size:28px;font-weight:400;margin-top:2px}
+#session[data-k="wait"] #skp{height:112px;border-radius:26px}
 .wrap.live:not(.run) .controls{display:grid}
 #go{height:76px;padding:0;border-radius:20px;background:#0B0C0E;color:var(--acc);font-size:20px;font-weight:650}
 #rst{height:76px;padding:0;border-radius:20px;background:rgba(0,0,0,.14);color:var(--ink);font-size:0;position:relative}
@@ -251,10 +255,30 @@ button.logset:active{transform:scale(.99)}
 .big{display:grid;grid-template-columns:72px 1fr 72px;align-items:center;background:#17191C;border-radius:20px;padding:8px;margin:0 0 8px}
 .big>button{width:64px;height:64px;border:0;border-radius:16px;background:var(--raise-2);color:var(--t1);font-size:28px;font-weight:300;line-height:1;cursor:pointer}
 .big>button:active{transform:scale(.96)}
-.big label{display:flex;flex-direction:column;align-items:center;min-width:0}
-.big input{width:100%;background:transparent;border:0;color:var(--t1);text-align:center;font:300 60px/1.05 var(--disp);letter-spacing:-.03em;padding:0;font-variant-numeric:tabular-nums}
-.big input::placeholder{color:var(--t3)}
-.big input:placeholder-shown{font-size:28px;font-weight:400;letter-spacing:0;line-height:2.2}
+.big .vcol{display:flex;flex-direction:column;align-items:center;min-width:0}
+.big .val{width:100%;height:66px;background:transparent;border:0;border-radius:14px;color:var(--t1);text-align:center;padding:0;
+  font:300 60px/1 var(--disp);letter-spacing:-.03em;font-variant-numeric:tabular-nums;outline:none}
+.big .val::placeholder{color:var(--t3)}
+.big .val:placeholder-shown{font-size:28px;font-weight:400;letter-spacing:0}
+.big .val:focus{background:rgba(93,178,255,.14);box-shadow:inset 0 0 0 2px var(--blue)}
+/* la hoja vive dentro del área visible: con teclado se encoge y hace scroll */
+.sheet{height:100%}
+.sh{max-height:100%;overflow-y:auto;overscroll-behavior:contain}
+.sh.kbd .effq,.sh.kbd .shrow{display:none}
+.sh.kbd .eff{margin-top:4px}
+.sh.kbd::before{margin-bottom:8px}
+/* compacta: reps y peso lado a lado, la hoja tapa ~media pantalla */
+.bigs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 4px}
+.bigs .big{grid-template-columns:38px minmax(0,1fr) 38px;gap:2px;padding:6px;margin:0;border-radius:18px}
+.bigs .big>button{width:38px;height:58px;border-radius:12px;font-size:24px}
+.bigs .big .val{height:48px;font-size:40px;border-radius:12px}
+.bigs .big .val:placeholder-shown{font-size:17px}
+.bigs .big small{margin-top:0}
+.bigs .big .unit{margin-top:2px;padding:2px 12px;font-size:12px}
+.sh .shtop{margin-bottom:12px}
+.sh .effq{margin:12px 2px 8px}
+.sh .eff button{height:56px}
+.sh .shrow{margin-top:4px}
 .big small{font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--t2);margin-top:2px}
 .big .unit{margin-top:4px;border:0;border-radius:999px;background:var(--raise-2);color:var(--t1);padding:4px 16px;font-size:13px;font-weight:600;letter-spacing:.06em;cursor:pointer}
 .effq{display:flex;justify-content:space-between;margin:16px 2px 10px;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--t2)}
@@ -268,6 +292,15 @@ button.logset:active{transform:scale(.99)}
 .eff button:active{transform:scale(.97)}
 .shrow{display:flex;gap:6px;margin-top:8px}
 .shrow .skip{flex:1;font-size:13px;padding:12px 2px}
+
+/* ================= retomar sesión a medias ================= */
+.resume{margin-top:22px;display:flex;flex-direction:column;align-items:stretch;gap:2px}
+#rsgo{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:72px;border:0;border-radius:20px;
+  background:var(--amber);color:var(--ink);padding:12px 20px;text-align:left;cursor:pointer}
+#rsgo small{display:block;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;opacity:.6}
+#rsgo b{display:block;font-size:17px;font-weight:650;line-height:1.25}
+#rsgo em{flex:none;font-style:normal;font-size:16px;font-weight:700}
+#rsx{align-self:center;font-size:14px}
 
 /* ================= aviso del Coros ================= */
 .mask{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.62);display:flex;align-items:flex-end;justify-content:center;animation:fade .25s ease}
@@ -301,6 +334,10 @@ button.logset:active{transform:scale(.99)}
   <p class="total" id="total"></p>
   <p id="wl"></p>
 
+  <div class="resume hide" id="resume">
+    <button type="button" id="rsgo"><span><small>Sesión a medias</small><b id="rsname"></b></span><em>Retomar</em></button>
+    <button type="button" class="tb" id="rsx">Descartar</button>
+  </div>
   <div class="go-wrap" id="go-wrap">
     <button type="button" class="hold" id="start" aria-label="Mantén presionado para empezar">
       <svg viewBox="0 0 128 128" aria-hidden="true"><circle class="trk" cx="64" cy="64" r="61"/><circle class="prg" id="holdprg" cx="64" cy="64" r="61"/></svg>
@@ -330,6 +367,7 @@ button.logset:active{transform:scale(.99)}
     <button class="act logset hide" id="logset">Anotar serie</button>
     <div class="controls">
       <button class="act go" id="go">Seguir</button>
+      <button class="act ghost" id="skp" aria-label="Saltar a la siguiente parte">Saltar<span>›</span></button>
       <button class="act ghost" id="rst" aria-label="Reiniciar">Reiniciar</button>
     </div>
     <p class="taphint" id="taphint">Toca la pantalla para pausar</p>
@@ -478,15 +516,19 @@ button.logset:active{transform:scale(.99)}
       <div class="t"><b id="shname">Sentadilla</b><span class="s" id="shset">serie 1 / 3</span></div>
       <div class="shclock" id="shclock"></div>
     </div>
-    <div class="big">
+    <!-- Teclado de iOS al tocar el número. La hoja se ajusta al área visible
+         (visualViewport) para que lo que se ve y lo que se toca coincidan. -->
+    <div class="bigs">
+    <div class="big" id="bigr">
       <button type="button" data-f="r" data-d="-1" aria-label="Una rep menos">−</button>
-      <label><input id="shreps" inputmode="numeric" autocomplete="off" placeholder="–"><small>reps</small></label>
+      <label class="vcol"><input class="val" id="shreps" inputmode="numeric" pattern="[0-9]*" enterkeyhint="next" autocomplete="off" placeholder="–" aria-label="Reps"><small>reps</small></label>
       <button type="button" data-f="r" data-d="1" aria-label="Una rep más">+</button>
     </div>
-    <div class="big">
+    <div class="big" id="bigw">
       <button type="button" data-f="w" data-d="-2.5" aria-label="2.5 kg menos">−</button>
-      <label><input id="shkg" inputmode="decimal" autocomplete="off" placeholder="sin peso"><button type="button" class="unit" id="shunit">lb</button></label>
+      <div class="vcol"><input class="val" id="shkg" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="sin peso" aria-label="Peso"><button type="button" class="unit" id="shunit">lb</button></div>
       <button type="button" data-f="w" data-d="2.5" aria-label="2.5 kg más">+</button>
+    </div>
     </div>
     <p class="effq">¿Cómo se sintió? <span>toca y se guarda</span></p>
     <div class="eff">
@@ -499,6 +541,15 @@ button.logset:active{transform:scale(.99)}
       <button class="skip" id="shok">Guardar sin calificar</button>
       <button class="skip" id="shx">Cancelar</button>
     </div>
+  </div>
+</div>
+
+<div class="mask hide" id="cmask">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ctitle">
+    <h2 id="ctitle">¿Terminar la sesión?</h2>
+    <p id="ctxt"></p>
+    <button class="act go" id="cstay">Seguir entrenando</button>
+    <button class="skip" id="cend">Terminar sesión</button>
   </div>
 </div>
 
@@ -639,11 +690,12 @@ function localTime(d){return pad2(d.getHours())+":"+pad2(d.getMinutes())+":"+pad
 function intervalDone(j){
   var s=seq[j];
   if(!s||s.k!=="work")return false;
+  if(s.skip&&!s.cap)return false;          // saltada sin anotar = no hecha
   if(finished||j<idx||s.cap)return true;   // anotada = hecha, aunque vaya antes de la mitad
   return j===idx&&left<=s.d/2;
 }
 function roundsDone(){
-  if(finished)return totalRounds();
+  if(finished&&S.mode!=="strength")return totalRounds();
   if(S.mode==="strength"){
     var n=0;for(var j=0;j<seq.length;j++)if(intervalDone(j))n++;
     return n;
@@ -653,8 +705,10 @@ function roundsDone(){
   return s?Math.max(0,s.r-1):0;
 }
 
-function recordSession(){
-  if(!LOGCFG.on||!sessionStart)return;
+function recordSession(quiet){
+  if(!sessionStart)return;
+  if(!finished){activeRec=true;saveActive()}   // a medias: queda para "Retomar"
+  if(!LOGCFG.on)return;
   var end=new Date(),done=roundsDone();
   if(!finished&&done===0)  {sessionStart=null;return;}   // se abortó antes de cerrar una ronda
   var e={
@@ -693,12 +747,71 @@ function recordSession(){
   }else{
     e.work_s=S.b_work;e.rest_s=S.b_rest;e.prep_s=S.b_prep;e.warn_s=S.b_warn;
   }
+  // misma id = la misma sesión retomada: la entrada nueva reemplaza a la parcial
   var a=readLog();
-  if(!a.some(function(x){return x.id===e.id})){a.push(e);writeLog(a)}
+  upsert(a,e);writeLog(a);
   sessionStart=null;
   syncStatus();
   if(LOGCFG.token)pushLog();
-  if(e.mode==="strength"&&S.f_notes)openNotes(e.id);
+  if(e.mode==="strength"&&S.f_notes&&!quiet)openNotes(e.id);
+}
+
+/* ---------- sesión en curso: sobrevive a un reinicio ----------
+   Mientras hay sesión se guarda una foto en localStorage: plan, intervalo,
+   segundos restantes y lo anotado. Si iOS mata la app, o si se tocó Terminar
+   sin querer, el inicio ofrece "Retomar" y se sigue en el mismo intervalo, en
+   pausa, con la misma id (al subirla reemplaza a la parcial). */
+var ACTKEY="ringtimer_active",activeRec=false,lastSave=0;
+function saveActive(){
+  if(!sessionStart||finished||!seq.length||!LOGCFG)return;
+  var caps=[],skips=[];seq.forEach(function(s,j){if(s.cap)caps.push([j,s.cap]);if(s.skip)skips.push(j)});
+  var name=S.mode==="strength"&&plan?plan.name:S.mode==="circuit"?"Circuito "+(S.day==="A"?"Lun/Jue":"Mar/Vie"):"Box";
+  var o={v:1,id:sessionStart.toISOString(),mode:S.mode,day:S.day,
+    f_day:plan?plan.day:S.f_day,f_week:plan?plan.week:S.f_week,
+    n:seq.length,idx:idx,left:Math.round(left*10)/10,caps:caps,skips:skips,
+    startedAt:startedAt?+startedAt:null,savedAt:Date.now(),rec:activeRec,
+    name:name,done:roundsDone(),total:totalRounds()};
+  lastSave=Date.now();
+  try{localStorage.setItem(ACTKEY,JSON.stringify(o))}catch(e){}
+}
+function readActive(){
+  var o=null;try{o=JSON.parse(localStorage.getItem(ACTKEY)||"null")}catch(e){}
+  if(!o||o.v!==1)return null;
+  if(Date.now()-o.savedAt>6*36e5){clearActive();return null}   // más de 6 h: ya no se retoma
+  return o;
+}
+function clearActive(){try{localStorage.removeItem(ACTKEY)}catch(e){}}
+function resumeActive(){
+  var o=readActive();if(!o)return false;
+  if(running)stop();
+  if(capJ!=null)closeSheet();
+  S.mode=o.mode;S.day=o.day;
+  if(o.mode==="strength"){S.f_day=o.f_day;S.f_week=o.f_week}
+  save();render();build();
+  if(seq.length!==o.n){clearActive();paintResume();return false}   // el plan ya no cuadra
+  idx=Math.min(o.idx,seq.length-1);left=Math.min(o.left,seq[idx].d);
+  o.caps.forEach(function(c){if(seq[c[0]])seq[c[0]].cap=c[1]});
+  (o.skips||[]).forEach(function(j){if(seq[j])seq[j].skip=true});
+  sessionStart=new Date(o.id);finished=false;activeRec=!!o.rec;
+  inSession=true;paintView();
+  if(o.startedAt)startedAt=new Date(o.startedAt);
+  $("go").textContent=seq[idx].k==="wait"?"Siguiente bloque":"Seguir";
+  paint();saveActive();
+  return true;
+}
+// Al abrir la app tras un cierre forzado la sesión todavía no está en el log:
+// se registra como incompleta para que suba aunque no se retome.
+function recordOrphan(){
+  var o=readActive();if(!o||o.rec)return;
+  var n=S.f_notes;S.f_notes=false;
+  if(resumeActive()){inSession=false;recordSession(true);sessionStart=null;stop();build();$("go").textContent="Empezar";paintView()}
+  S.f_notes=n;save();
+}
+function paintResume(){
+  var o=inSession?null:readActive();
+  if(o&&!o.done)o=null;   // arrancó y se cortó antes de la primera serie: nada que retomar
+  $("resume").classList.toggle("hide",!o);
+  if(o)$("rsname").textContent=o.name+" · "+o.done+" de "+o.total+" intervalos";
 }
 
 /* ---------- serie por serie (fuerza) ----------
@@ -808,7 +921,7 @@ function capPrefill(j){
 function paintUnit(){
   $("shunit").textContent=capUnit;
   $("shunit").setAttribute("aria-label","Unidad: "+(capUnit==="lb"?"libras":"kilos")+". Toca para cambiar");
-  var b=document.querySelectorAll('#sheet .big button[data-f="w"]');
+  var b=document.querySelectorAll('#sheet .big button[data-f="w"][data-d]');
   b[0].setAttribute("data-d",capUnit==="lb"?-5:-2.5);
   b[1].setAttribute("data-d",capUnit==="lb"?5:2.5);
 }
@@ -829,7 +942,7 @@ function openSheet(j){
   var prev=null;for(var i=j-1;i>=0;i--)if(seq[i].k==="work"){prev=i;break}
   $("shprev").style.visibility=prev==null?"hidden":"visible";
   $("shprev").setAttribute("data-j",prev==null?"":prev);
-  $("sheet").className="sheet";
+  $("sheet").className="sheet";kbdOn(false);fitSheet();
   paintSheetClock();
 }
 function commitSheet(effort){
@@ -842,16 +955,58 @@ function commitSheet(effort){
   remember(plan.day,x.name,x.variant,w,capUnit,r);
   closeSheet();
 }
-function closeSheet(){capJ=null;$("sheet").className="sheet hide";paintLogBtn()}
+function closeSheet(){
+  var a=document.activeElement;if(a&&a.blur&&$("sheet").contains(a))a.blur();
+  capJ=null;$("sheet").className="sheet hide";fitSheet();paintLogBtn();saveActive();
+}
+// El reloj de la hoja corre cada 80 ms: solo se toca el DOM cuando cambia el texto.
+var shClockTxt="";
 function paintSheetClock(){
   if(capJ==null)return;
   var s=seq[idx];
   var what=finished?"terminado":s.k==="work"?(idx===capJ?"descanso":strLabel(s).toLowerCase())
     :s.k==="wait"?"cambio":"prepárate";
-  $("shclock").innerHTML="";
-  var b=document.createElement("b");b.textContent=finished||s.k==="wait"?"–":fmt(left);
-  $("shclock").appendChild(b);$("shclock").appendChild(document.createTextNode(what+(running?"":" · pausa")));
+  var t=finished||s.k==="wait"?"–":fmt(left),sub=what+(running?"":" · pausa");
+  if(t+"|"+sub===shClockTxt)return;
+  shClockTxt=t+"|"+sub;
+  var box=$("shclock");
+  if(!box.firstChild||box.firstChild.tagName!=="B"){box.innerHTML="";box.appendChild(document.createElement("b"));box.appendChild(document.createTextNode(""))}
+  box.firstChild.textContent=t;box.lastChild.textContent=sub;
 }
+
+/* Teclado de iOS en la hoja. El bug de antes: la hoja es position:fixed sobre el
+   layout viewport, y al salir el teclado iOS desplaza el viewport visible. Lo
+   pintado y lo tocable dejaban de coincidir (tocar reps caía en el + del peso).
+   Ahora la hoja se dimensiona con visualViewport: siempre ocupa exactamente lo
+   que se ve, encima del teclado, y su contenido hace scroll si no cabe. */
+function fitSheet(){
+  var sh=$("sheet"),vv=window.visualViewport;
+  if(!vv||sh.classList.contains("hide")){sh.style.top="";sh.style.height="";sh.style.bottom="";return}
+  sh.style.top=vv.offsetTop+"px";sh.style.height=vv.height+"px";sh.style.bottom="auto";
+}
+if(window.visualViewport){
+  window.visualViewport.addEventListener("resize",fitSheet);
+  window.visualViewport.addEventListener("scroll",fitSheet);
+}
+window.addEventListener("resize",fitSheet);
+function kbdOn(on){
+  document.querySelector("#sheet .sh").classList.toggle("kbd",on);
+  if(on)setTimeout(function(){
+    fitSheet();
+    var a=document.activeElement;if(a&&a.scrollIntoView)a.scrollIntoView({block:"nearest"});
+  },60);
+}
+["shreps","shkg"].forEach(function(id){
+  var i=$(id);
+  // al tocar, se selecciona todo: lo que escribas reemplaza el número sugerido
+  i.addEventListener("focus",function(){kbdOn(true);setTimeout(function(){try{i.setSelectionRange(0,i.value.length)}catch(e){}},0)});
+  i.addEventListener("blur",function(){setTimeout(function(){
+    var a=document.activeElement;if(a!==$("shreps")&&a!==$("shkg"))kbdOn(false);
+  },0)});
+  i.addEventListener("click",function(ev){ev.stopPropagation()});
+});
+$("shreps").addEventListener("keydown",function(ev){if(ev.key==="Enter"){ev.preventDefault();$("shkg").focus()}});
+$("shkg").addEventListener("keydown",function(ev){if(ev.key==="Enter"){ev.preventDefault();$("shkg").blur()}});
 function paintLogBtn(){
   var btn=$("logset"),j=S.mode==="strength"&&sessionStart&&!finished?lastWorkIdx():null;
   if(j==null){btn.className="act logset hide";return}
@@ -878,14 +1033,14 @@ $("shprev").onclick=function(ev){
   if(j!=="")openSheet(+j);
 };
 $("sheet").onclick=function(ev){ev.stopPropagation()};
-Array.prototype.forEach.call(document.querySelectorAll("#sheet .big button[data-f]"),function(b){
+Array.prototype.forEach.call(document.querySelectorAll("#sheet .big button[data-d]"),function(b){
   b.onclick=function(ev){
     ev.stopPropagation();
-    var inp=b.getAttribute("data-f")==="r"?$("shreps"):$("shkg");
+    var f=b.getAttribute("data-f"),inp=f==="r"?$("shreps"):$("shkg");
     var d=+b.getAttribute("data-d"),v=num(inp.value);
     if(v==null){if(d<0)return;v=0}
     v=Math.max(0,Math.round((v+d)*10)/10);
-    inp.value=v===0&&b.getAttribute("data-f")==="w"?"":v;
+    inp.value=v===0&&f==="w"?"":v;
   };
 });
 
@@ -1208,6 +1363,7 @@ function nextTraining(){
 }
 function paintHome(){
   if(!seq.length)return;
+  paintResume();
   var now=new Date(),date=DIAS[now.getDay()]+" "+now.getDate()+" "+MESES[now.getMonth()];
   var st=$("stats"),hp=$("hplan");st.innerHTML="";hp.innerHTML="";
   st.classList.remove("hide");hp.classList.remove("hide");
@@ -1362,7 +1518,7 @@ function paintSummary(){
   st.appendChild(stat("Tiempo",fmt(secs)));
   var works=seq.filter(function(x){return x.k==="work"});
   if(S.mode==="strength"){
-    st.appendChild(stat("Intervalos",works.length+"/"+works.length));
+    st.appendChild(stat("Intervalos",roundsDone()+"/"+works.length));
     var caps=works.filter(function(x){return x.cap}).length;
     st.appendChild(stat("Anotadas",caps+"/"+works.length));
     var rank={facil:0,bien:1,duro:2};
@@ -1542,10 +1698,10 @@ function step(){
       finished=true;left=0;stop();
       if(S.mode==="box")bell(3);else tone(520,.9,1);
       if(capJ!=null)commitSheet();   // lo que estaba en la hoja abierta no se pierde
-      recordSession();
+      recordSession();clearActive();
       paint();return;
     }
-    idx++;left=seq[idx].d;warned=false;
+    idx++;left=seq[idx].d;warned=false;saveActive();
     var n=seq[idx];
     if(n.k==="wait"){
       // entre bloques el reloj se detiene hasta que Pedro toque
@@ -1560,13 +1716,14 @@ function step(){
   $("clock").textContent=fmt(left);
   setBar(1-left/s.d);
   paintSheetClock();
+  if(now-lastSave>3000)saveActive();
 }
 
 function start(){
   showSettings(false);$("gear").disabled=true;
   if(finished)build();
   if(seq[idx].k==="off"){$("gear").disabled=false;return}
-  if(!sessionStart&&atStart())sessionStart=new Date();
+  if(!sessionStart&&atStart()){sessionStart=new Date();activeRec=false}
   var fresh=idx===0&&left===seq[idx].d;
   if(seq[idx].k==="wait"){idx++;left=seq[idx].d;fresh=true;paint()}
   actx();running=true;last=Date.now();
@@ -1577,11 +1734,13 @@ function start(){
   if(fresh){if(s.k==="work"&&s.bell)bell(1);else tone(1050,.4,1)}
   paintLogBtn();
   inSession=true;paintView();
+  saveActive();
 }
 function stop(){
   running=false;clearInterval(tick);$("gear").disabled=false;
   $("go").textContent=finished?"Empezar":"Seguir";
   paintSheetClock();paintView();
+  saveActive();
 }
 function reset(){
   inSession=false;
@@ -1629,7 +1788,46 @@ $("gear").onclick=function(ev){
 $("setdone").onclick=function(ev){ev.stopPropagation();showSettings(false)};
 
 $("go").onclick=function(){if(finished&&inSession){reset();return}running?stop():attemptStart()};
-$("rst").onclick=function(){closeModal();reset()};
+// Terminar a media sesión pide confirmación: un toque de más (la pantalla en
+// pausa deja el botón justo donde estaba la hoja) ya no corta el entrenamiento.
+$("rst").onclick=function(ev){
+  ev.stopPropagation();closeModal();
+  if(!sessionStart||finished){reset();return}
+  var d=roundsDone(),t=totalRounds();
+  $("ctxt").textContent="Llevas "+d+" de "+t+" intervalos. Se guarda lo que hiciste y la puedes retomar desde el inicio.";
+  $("cmask").className="mask";
+};
+// Saltar (en pausa): pasa a la siguiente parte sin esperar el reloj. Sirve al
+// retomar tras un reinicio si ya hiciste esas series por tu cuenta. Una serie
+// saltada antes de la mitad no cuenta como hecha, salvo que se anote (la hoja
+// deja anotar la anterior con "‹ la serie anterior").
+$("skp").onclick=function(ev){
+  ev.stopPropagation();
+  if(!seq.length||finished||seq[idx].k==="off")return;
+  if(!sessionStart){sessionStart=new Date();activeRec=false}
+  var s=seq[idx];
+  if(s.k==="work"&&!intervalDone(idx))s.skip=true;
+  if(capJ!=null)commitSheet();
+  if(idx>=seq.length-1){
+    finished=true;left=0;stop();tone(520,.9,1);
+    recordSession();clearActive();inSession=true;paint();return;
+  }
+  idx++;left=seq[idx].d;warned=false;
+  $("go").textContent=seq[idx].k==="wait"?"Siguiente bloque":"Seguir";
+  inSession=true;paint();saveActive();
+};
+$("cstay").onclick=function(ev){ev.stopPropagation();$("cmask").className="mask hide"};
+$("cend").onclick=function(ev){ev.stopPropagation();$("cmask").className="mask hide";reset()};
+$("cmask").onclick=function(ev){if(ev.target===$("cmask"))$("cmask").className="mask hide"};
+$("rsgo").onclick=function(ev){ev.stopPropagation();resumeActive()};
+$("rsx").onclick=function(ev){
+  ev.stopPropagation();
+  // descartar = registrar lo hecho (si no estaba) y olvidar la foto
+  recordOrphan();clearActive();paintResume();
+};
+// iOS puede matar la app en segundo plano sin aviso: se guarda al salir
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="hidden")saveActive()});
+window.addEventListener("pagehide",function(){saveActive()});
 $("stage").onclick=function(){if(finished)return;running?stop():attemptStart()};
 
 Array.prototype.forEach.call(document.querySelectorAll(".step"),function(el){
@@ -1833,6 +2031,7 @@ if(!HAS_WL)
   $("wl").textContent="Tu navegador no soporta bloqueo de pantalla. Pon el auto-bloqueo en Nunca mientras entrenas.";
 
 render();build();requestLock();syncStatus();
+recordOrphan();paintResume();
 // reintento de subida al abrir la app, por si la última sesión se grabó sin red
 if(LOGCFG.on&&LOGCFG.token&&pending().length)pushLog();
 
