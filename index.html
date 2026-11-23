@@ -205,7 +205,11 @@ button.logset::after{content:"";flex:none;width:10px;height:10px;border-top:2px 
 button.logset.ok::after{content:"Editar";width:auto;height:auto;border:0;transform:none;margin:0;font-size:14px;font-weight:500;color:var(--acc)}
 button.logset:active{transform:scale(.99)}
 #session[data-k="wait"] .logset{display:none}
-.controls{display:none;grid-template-columns:1fr 76px;gap:10px;margin-top:10px}
+.controls{display:none;grid-template-columns:1fr 76px 76px;gap:10px;margin-top:10px}
+#skp{height:76px;padding:0;border-radius:20px;background:rgba(0,0,0,.14);color:var(--ink);font-size:14px;font-weight:700;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+#skp span{font-size:28px;font-weight:400;margin-top:2px}
+#session[data-k="wait"] #skp{height:112px;border-radius:26px}
 .wrap.live:not(.run) .controls{display:grid}
 #go{height:76px;padding:0;border-radius:20px;background:#0B0C0E;color:var(--acc);font-size:20px;font-weight:650}
 #rst{height:76px;padding:0;border-radius:20px;background:rgba(0,0,0,.14);color:var(--ink);font-size:0;position:relative}
@@ -263,6 +267,18 @@ button.logset:active{transform:scale(.99)}
 .sh.kbd .effq,.sh.kbd .shrow{display:none}
 .sh.kbd .eff{margin-top:4px}
 .sh.kbd::before{margin-bottom:8px}
+/* compacta: reps y peso lado a lado, la hoja tapa ~media pantalla */
+.bigs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 4px}
+.bigs .big{grid-template-columns:38px minmax(0,1fr) 38px;gap:2px;padding:6px;margin:0;border-radius:18px}
+.bigs .big>button{width:38px;height:58px;border-radius:12px;font-size:24px}
+.bigs .big .val{height:48px;font-size:40px;border-radius:12px}
+.bigs .big .val:placeholder-shown{font-size:17px}
+.bigs .big small{margin-top:0}
+.bigs .big .unit{margin-top:2px;padding:2px 12px;font-size:12px}
+.sh .shtop{margin-bottom:12px}
+.sh .effq{margin:12px 2px 8px}
+.sh .eff button{height:56px}
+.sh .shrow{margin-top:4px}
 .big small{font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--t2);margin-top:2px}
 .big .unit{margin-top:4px;border:0;border-radius:999px;background:var(--raise-2);color:var(--t1);padding:4px 16px;font-size:13px;font-weight:600;letter-spacing:.06em;cursor:pointer}
 .effq{display:flex;justify-content:space-between;margin:16px 2px 10px;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--t2)}
@@ -351,6 +367,7 @@ button.logset:active{transform:scale(.99)}
     <button class="act logset hide" id="logset">Anotar serie</button>
     <div class="controls">
       <button class="act go" id="go">Seguir</button>
+      <button class="act ghost" id="skp" aria-label="Saltar a la siguiente parte">Saltar<span>›</span></button>
       <button class="act ghost" id="rst" aria-label="Reiniciar">Reiniciar</button>
     </div>
     <p class="taphint" id="taphint">Toca la pantalla para pausar</p>
@@ -501,6 +518,7 @@ button.logset:active{transform:scale(.99)}
     </div>
     <!-- Teclado de iOS al tocar el número. La hoja se ajusta al área visible
          (visualViewport) para que lo que se ve y lo que se toca coincidan. -->
+    <div class="bigs">
     <div class="big" id="bigr">
       <button type="button" data-f="r" data-d="-1" aria-label="Una rep menos">−</button>
       <label class="vcol"><input class="val" id="shreps" inputmode="numeric" pattern="[0-9]*" enterkeyhint="next" autocomplete="off" placeholder="–" aria-label="Reps"><small>reps</small></label>
@@ -510,6 +528,7 @@ button.logset:active{transform:scale(.99)}
       <button type="button" data-f="w" data-d="-2.5" aria-label="2.5 kg menos">−</button>
       <div class="vcol"><input class="val" id="shkg" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="sin peso" aria-label="Peso"><button type="button" class="unit" id="shunit">lb</button></div>
       <button type="button" data-f="w" data-d="2.5" aria-label="2.5 kg más">+</button>
+    </div>
     </div>
     <p class="effq">¿Cómo se sintió? <span>toca y se guarda</span></p>
     <div class="eff">
@@ -671,11 +690,12 @@ function localTime(d){return pad2(d.getHours())+":"+pad2(d.getMinutes())+":"+pad
 function intervalDone(j){
   var s=seq[j];
   if(!s||s.k!=="work")return false;
+  if(s.skip&&!s.cap)return false;          // saltada sin anotar = no hecha
   if(finished||j<idx||s.cap)return true;   // anotada = hecha, aunque vaya antes de la mitad
   return j===idx&&left<=s.d/2;
 }
 function roundsDone(){
-  if(finished)return totalRounds();
+  if(finished&&S.mode!=="strength")return totalRounds();
   if(S.mode==="strength"){
     var n=0;for(var j=0;j<seq.length;j++)if(intervalDone(j))n++;
     return n;
@@ -744,11 +764,11 @@ function recordSession(quiet){
 var ACTKEY="ringtimer_active",activeRec=false,lastSave=0;
 function saveActive(){
   if(!sessionStart||finished||!seq.length||!LOGCFG)return;
-  var caps=[];seq.forEach(function(s,j){if(s.cap)caps.push([j,s.cap])});
+  var caps=[],skips=[];seq.forEach(function(s,j){if(s.cap)caps.push([j,s.cap]);if(s.skip)skips.push(j)});
   var name=S.mode==="strength"&&plan?plan.name:S.mode==="circuit"?"Circuito "+(S.day==="A"?"Lun/Jue":"Mar/Vie"):"Box";
   var o={v:1,id:sessionStart.toISOString(),mode:S.mode,day:S.day,
     f_day:plan?plan.day:S.f_day,f_week:plan?plan.week:S.f_week,
-    n:seq.length,idx:idx,left:Math.round(left*10)/10,caps:caps,
+    n:seq.length,idx:idx,left:Math.round(left*10)/10,caps:caps,skips:skips,
     startedAt:startedAt?+startedAt:null,savedAt:Date.now(),rec:activeRec,
     name:name,done:roundsDone(),total:totalRounds()};
   lastSave=Date.now();
@@ -771,6 +791,7 @@ function resumeActive(){
   if(seq.length!==o.n){clearActive();paintResume();return false}   // el plan ya no cuadra
   idx=Math.min(o.idx,seq.length-1);left=Math.min(o.left,seq[idx].d);
   o.caps.forEach(function(c){if(seq[c[0]])seq[c[0]].cap=c[1]});
+  (o.skips||[]).forEach(function(j){if(seq[j])seq[j].skip=true});
   sessionStart=new Date(o.id);finished=false;activeRec=!!o.rec;
   inSession=true;paintView();
   if(o.startedAt)startedAt=new Date(o.startedAt);
@@ -1497,7 +1518,7 @@ function paintSummary(){
   st.appendChild(stat("Tiempo",fmt(secs)));
   var works=seq.filter(function(x){return x.k==="work"});
   if(S.mode==="strength"){
-    st.appendChild(stat("Intervalos",works.length+"/"+works.length));
+    st.appendChild(stat("Intervalos",roundsDone()+"/"+works.length));
     var caps=works.filter(function(x){return x.cap}).length;
     st.appendChild(stat("Anotadas",caps+"/"+works.length));
     var rank={facil:0,bien:1,duro:2};
@@ -1775,6 +1796,25 @@ $("rst").onclick=function(ev){
   var d=roundsDone(),t=totalRounds();
   $("ctxt").textContent="Llevas "+d+" de "+t+" intervalos. Se guarda lo que hiciste y la puedes retomar desde el inicio.";
   $("cmask").className="mask";
+};
+// Saltar (en pausa): pasa a la siguiente parte sin esperar el reloj. Sirve al
+// retomar tras un reinicio si ya hiciste esas series por tu cuenta. Una serie
+// saltada antes de la mitad no cuenta como hecha, salvo que se anote (la hoja
+// deja anotar la anterior con "‹ la serie anterior").
+$("skp").onclick=function(ev){
+  ev.stopPropagation();
+  if(!seq.length||finished||seq[idx].k==="off")return;
+  if(!sessionStart){sessionStart=new Date();activeRec=false}
+  var s=seq[idx];
+  if(s.k==="work"&&!intervalDone(idx))s.skip=true;
+  if(capJ!=null)commitSheet();
+  if(idx>=seq.length-1){
+    finished=true;left=0;stop();tone(520,.9,1);
+    recordSession();clearActive();inSession=true;paint();return;
+  }
+  idx++;left=seq[idx].d;warned=false;
+  $("go").textContent=seq[idx].k==="wait"?"Siguiente bloque":"Seguir";
+  inSession=true;paint();saveActive();
 };
 $("cstay").onclick=function(ev){ev.stopPropagation();$("cmask").className="mask hide"};
 $("cend").onclick=function(ev){ev.stopPropagation();$("cmask").className="mask hide";reset()};
